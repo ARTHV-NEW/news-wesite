@@ -1,0 +1,6 @@
+{
+  "name": "PulseNews",
+  "description": "A sleek, minimal, and professional news media application featuring breaking stories, category navigation, real-time updates, and deep analytical insight.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

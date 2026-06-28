@@ -1,0 +1,17 @@
+{
+  "collections": [
+    {
+      "name": "users",
+      "rules": [
+        {
+          "allow": "read",
+          "condition": "request.auth != null && request.auth.uid == resource.id"
+        },
+        {
+          "allow": "write",
+          "condition": "request.auth != null && request.auth.uid == resource.id"
+        }
+      ]
+    }
+  ]
+}
