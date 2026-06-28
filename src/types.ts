@@ -42,4 +42,11 @@ export type Category =
   | 'Science'
   | 'Sports'
   | 'Culture'
-  | 'Opinion';
+  | 'Opinion'
+  | 'Profile'
+  | 'About'
+  | 'Contact'
+  | 'Privacy'
+  | 'Terms'
+  | 'Cookies'
+  | 'Sitemap';

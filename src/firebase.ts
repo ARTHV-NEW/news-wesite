@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 
 const firebaseConfig = {
   projectId: "jittery-nation-f5xj8",
@@ -13,10 +13,16 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
-// Need to add databaseId if we are using the named database, let's just initialize it with default if we can, but wait, firestoreDatabaseId is provided: "ai-studio-pulsenews-1ac12794-fb44-4e4e-bd47-c252f05ae3a5"
-// Actually, firebase v10 `getFirestore` accepts a db named instance or just use initializeFirestore if default? No, wait. 
-// We should check how to initialize named firestore in web SDK. 
-// getFirestore(app, "ai-studio-pulsenews-1ac12794-fb44-4e4e-bd47-c252f05ae3a5")
-
 export const auth = getAuth(app);
 export const db = getFirestore(app, "ai-studio-pulsenews-1ac12794-fb44-4e4e-bd47-c252f05ae3a5");
+
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if(error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration.");
+    }
+  }
+}
+testConnection();

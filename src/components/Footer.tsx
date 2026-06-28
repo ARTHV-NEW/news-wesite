@@ -204,13 +204,13 @@ export default function Footer({ onSelectCategory, onOpenSubscribe }: FooterProp
           </p>
           
           <div className="flex items-center gap-4 text-xs font-sans text-gray-500">
-            <button className="hover:text-white transition-colors">Privacy Policy</button>
+            <button onClick={() => onSelectCategory('Privacy')} className="hover:text-white transition-colors">Privacy Policy</button>
             <span>·</span>
-            <button className="hover:text-white transition-colors">Terms of Use</button>
+            <button onClick={() => onSelectCategory('Terms')} className="hover:text-white transition-colors">Terms of Use</button>
             <span>·</span>
-            <button className="hover:text-white transition-colors">Cookie Settings</button>
+            <button onClick={() => onSelectCategory('Cookies')} className="hover:text-white transition-colors">Cookie Settings</button>
             <span>·</span>
-            <button className="hover:text-white transition-colors">Sitemap</button>
+            <button onClick={() => onSelectCategory('Sitemap')} className="hover:text-white transition-colors">Sitemap</button>
           </div>
         </div>
 

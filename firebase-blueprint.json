@@ -1,17 +1,32 @@
 {
-  "collections": [
-    {
-      "name": "users",
-      "rules": [
-        {
-          "allow": "read",
-          "condition": "request.auth != null && request.auth.uid == resource.id"
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "firstName": {
+          "type": "string"
         },
-        {
-          "allow": "write",
-          "condition": "request.auth != null && request.auth.uid == resource.id"
+        "lastName": {
+          "type": "string"
+        },
+        "bio": {
+          "type": "string"
+        },
+        "avatarUrl": {
+          "type": "string"
         }
-      ]
+      },
+      "required": ["firstName", "lastName"]
     }
-  ]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Store user profiles"
+    }
+  }
 }

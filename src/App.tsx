@@ -10,6 +10,8 @@ import SavedArticlesDrawer from './components/SavedArticlesDrawer';
 import ArticleView from './components/ArticleView';
 import Newsletter from './components/Newsletter';
 import Footer from './components/Footer';
+import ProfileView from './components/ProfileView';
+import StaticPageView from './components/StaticPageView';
 import { Article, Category } from './types';
 import { INITIAL_ARTICLES } from './data/articles';
 
@@ -179,7 +181,11 @@ export default function App() {
       <TrendingTicker />
 
       {/* MAIN CONTENT AREA */}
-      {selectedArticle ? (
+      {['About', 'Contact', 'Privacy', 'Terms', 'Cookies', 'Sitemap'].includes(activeCategory) ? (
+        <StaticPageView pageType={activeCategory} onNavigateBack={() => setActiveCategory('Home')} />
+      ) : activeCategory === 'Profile' ? (
+        <ProfileView onNavigateBack={() => setActiveCategory('Home')} />
+      ) : selectedArticle ? (
         <ArticleView
           article={selectedArticle}
           relatedArticles={articles.filter(a => a.category === selectedArticle.category && a.id !== selectedArticle.id).slice(0, 3)}
@@ -298,34 +304,6 @@ export default function App() {
                   <p className="text-sm text-gray-600 mt-2.5 leading-relaxed">
                     {breakingNews.subtitle}
                   </p>
-                  
-                  {/* Meta items */}
-                  <div className="flex items-center justify-between pt-4 mt-4 border-t border-[#E0E0DE]">
-                    <div className="flex items-center gap-3">
-                      <img src={breakingNews.author.avatar} alt={breakingNews.author.name} className="w-8 h-8 rounded-full object-cover" referrerPolicy="no-referrer" />
-                      <div>
-                        <span className="text-xs font-bold font-sans text-gray-800 block">{breakingNews.author.name}</span>
-                        <span className="text-[10px] font-mono text-gray-500 uppercase tracking-tight">{breakingNews.publishedAt} · {breakingNews.readTime}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleToggleBookmark(breakingNews)}
-                        className="p-1.5 rounded-none border border-gray-300 hover:bg-black/5 cursor-pointer text-gray-500"
-                        title="Save to Reading List"
-                      >
-                        <Bookmark className={`w-4 h-4 ${savedArticles.some(a => a.id === breakingNews.id) ? 'fill-[#c8232c] text-[#c8232c]' : ''}`} />
-                      </button>
-
-                      <button 
-                        onClick={() => setSelectedArticle(breakingNews)}
-                        className="px-4 py-1.5 bg-black hover:bg-[#c8232c] text-white text-xs font-bold rounded-none transition-colors cursor-pointer uppercase tracking-wider"
-                      >
-                        Read Report
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
 

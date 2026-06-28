@@ -3,7 +3,6 @@ import { Search, Globe, Bookmark, Sparkles, Calendar, ArrowRight, Menu, X, User,
 import { Category } from '../types';
 import { useAuth } from '../AuthContext';
 import AuthModal from './AuthModal';
-import ProfileModal from './ProfileModal';
 
 interface HeaderProps {
   activeCategory: Category;
@@ -27,7 +26,6 @@ export default function Header({
   const [currentTime, setCurrentTime] = useState<string>('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   
   const { user } = useAuth();
@@ -82,8 +80,8 @@ export default function Header({
           
           {/* Right: Links and Socials */}
           <div className="flex items-center gap-4 font-bold text-sm">
-            <button className="hover:text-gray-600 transition-colors">About us</button>
-            <button className="hover:text-gray-600 transition-colors">Contact us</button>
+            <button onClick={() => setActiveCategory('About')} className="hover:text-gray-600 transition-colors">About us</button>
+            <button onClick={() => setActiveCategory('Contact')} className="hover:text-gray-600 transition-colors">Contact us</button>
             
             <div className="flex items-center gap-4 ml-2">
               <button className="hover:text-gray-600 transition-colors">
@@ -163,7 +161,7 @@ export default function Header({
             {/* Desktop Account & Subscribe */}
             <div className="hidden md:flex items-center gap-6 md:gap-8">
               <button
-                onClick={() => user ? setIsProfileModalOpen(true) : setIsAuthModalOpen(true)}
+                onClick={() => user ? setActiveCategory('Profile') : setIsAuthModalOpen(true)}
                 className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity text-black"
               >
                 <User className="w-5 h-5 stroke-[2]" />
@@ -276,7 +274,7 @@ export default function Header({
             <button
               onClick={() => {
                 setIsMobileMenuOpen(false);
-                user ? setIsProfileModalOpen(true) : setIsAuthModalOpen(true);
+                user ? setActiveCategory('Profile') : setIsAuthModalOpen(true);
               }}
               className="md:hidden flex items-center justify-between w-full px-4 py-3 border border-gray-200 hover:border-gray-400 hover:bg-gray-50 rounded-sm text-xs font-semibold text-black uppercase tracking-wider transition-all duration-200 cursor-pointer mb-2"
             >
@@ -336,7 +334,6 @@ export default function Header({
       </div>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-      <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
 
       {/* Search Modal */}
       {isSearchModalOpen && (
