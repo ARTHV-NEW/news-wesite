@@ -3,18 +3,18 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 
 const firebaseConfig = {
-  projectId: "jittery-nation-f5xj8",
-  appId: "1:533900522181:web:48fbca6339748e877af6ac",
-  apiKey: "AIzaSyCQHA1945tPYfa2pJC3eoowRa_OLkIF4i0",
-  authDomain: "jittery-nation-f5xj8.firebaseapp.com",
-  storageBucket: "jittery-nation-f5xj8.firebasestorage.app",
-  messagingSenderId: "533900522181",
+  apiKey: "AIzaSyCXP78DoutpD4IO3NDt6Zgdn8SpswnMLhs",
+  authDomain: "news-88fb3.firebaseapp.com",
+  projectId: "news-88fb3",
+  storageBucket: "news-88fb3.firebasestorage.app",
+  messagingSenderId: "781444587120",
+  appId: "1:781444587120:web:54d0fd5345948bb2df9eb5",
   measurementId: ""
 };
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, "ai-studio-pulsenews-1ac12794-fb44-4e4e-bd47-c252f05ae3a5");
+export const db = getFirestore(app);
 
 async function testConnection() {
   try {

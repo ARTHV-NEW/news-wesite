@@ -1,7 +1,11 @@
 import React from 'react';
 
-export default function TrendingTicker() {
-  const trends = [
+interface TrendingTickerProps {
+  items?: string[];
+}
+
+export default function TrendingTicker({ items }: TrendingTickerProps) {
+  const defaultTrends = [
     "Global leaders convene for emergency climate summit in Geneva",
     "Tech giant unveils revolutionary AI chip with 10× performance gains",
     "Central bank signals rate cut amid cooling inflation figures",
@@ -9,6 +13,8 @@ export default function TrendingTicker() {
     "Olympic committee announces record-breaking viewership for opening ceremony",
     "Major trade agreement signed between 12 Pacific nations"
   ];
+
+  const trends = items && items.length > 0 ? items : defaultTrends;
 
   // Double list for smooth infinite scrolling
   const scrollItems = [...trends, ...trends];

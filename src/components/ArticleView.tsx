@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Bookmark, Heart, Send, Volume2, 
   MessageSquare, User, Clock, Share2, ZoomIn, ZoomOut,
-  Play, Pause, Square, AlertCircle, ArrowLeft, Twitter, Facebook, Linkedin, Link as LinkIcon
+  Play, Pause, Square, AlertCircle, ArrowLeft, Twitter, Facebook, Linkedin, Link as LinkIcon,
+  CheckCircle2, Plus, FileText
 } from 'lucide-react';
 import { Article, Comment } from '../types';
 
@@ -206,6 +207,14 @@ export default function ArticleView({
         shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
         window.open(shareUrl, '_blank');
         break;
+      case 'whatsapp':
+        shareUrl = `https://api.whatsapp.com/send?text=${text}%20${encodeURIComponent(url)}`;
+        window.open(shareUrl, '_blank');
+        break;
+      case 'telegram':
+        shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${text}`;
+        window.open(shareUrl, '_blank');
+        break;
       case 'copy':
         navigator.clipboard.writeText(url);
         alert("Link copied to clipboard!");
@@ -307,66 +316,130 @@ export default function ArticleView({
           {/* Main Article Content */}
           <div className="lg:w-2/3">
             <article>
-              {/* Header category info */}
-              <div className="flex items-center gap-3.5 mb-6">
-                <span className="font-sans text-xs text-[#ef3a3e] font-bold tracking-widest uppercase">
+              {/* Category Badge */}
+              <div className="mb-3">
+                <span className="inline-block bg-[#00a859] text-white text-[11px] font-black tracking-widest px-3 py-1 uppercase rounded-none shadow-sm select-none">
                   {article.category}
                 </span>
-                <span className="text-gray-300">•</span>
-                <span className="text-xs font-sans text-gray-500 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  {article.readTime}
-                </span>
-                {article.tag && (
-                  <>
-                    <span className="text-gray-300">•</span>
-                    <span className="font-sans text-[10px] bg-red-100 text-[#ef3a3e] font-bold tracking-widest px-2 py-1 rounded-sm uppercase">
-                      {article.tag}
-                    </span>
-                  </>
-                )}
               </div>
 
-              {/* Editorial Title */}
-              <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-6 text-gray-900">
+              {/* Headline */}
+              <h1 className="font-serif text-3xl md:text-4xl lg:text-[40px] font-black tracking-tight leading-tight mb-4 text-[#111111]">
                 {article.title}
               </h1>
 
-              {/* Editorial Subtitle */}
-              <p className="text-xl font-sans text-gray-600 leading-relaxed mb-8 font-light">
+              {/* Subtitle / Lead Paragraph */}
+              <p className="text-gray-600 font-sans text-sm md:text-base leading-relaxed mb-6 font-normal border-l-4 border-gray-300 pl-4 italic">
                 {article.subtitle}
               </p>
 
-              {/* Author Metadata block */}
-              <div className="flex items-center justify-between border-t border-b border-gray-200 py-4 mb-10">
-                <div className="flex items-center gap-4">
-                  <img src={article.author.avatar} alt={article.author.name} className="w-14 h-14 rounded-full object-cover shadow-sm" referrerPolicy="no-referrer" />
+              {/* Author Row & Actions */}
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between border-t border-b border-gray-200 py-3 mb-6 gap-4">
+                {/* Author Info */}
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={article.author.avatar} 
+                    alt={article.author.name} 
+                    className="w-10 h-10 rounded-full object-cover border border-gray-100" 
+                    referrerPolicy="no-referrer" 
+                  />
                   <div>
-                    <h4 className="text-base font-bold font-sans text-gray-900">By {article.author.name}</h4>
-                    <p className="text-xs text-gray-500 font-sans mt-0.5">{article.author.role}</p>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-bold text-gray-900 font-sans">By {article.author.name}</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#1DA1F2] fill-[#1DA1F2] text-white" />
+                    </div>
+                    <p className="text-[11px] text-gray-500 font-sans mt-0.5">
+                      Published On {article.publishedAt}
+                    </p>
                   </div>
                 </div>
 
-                <div className="text-right flex flex-col justify-center">
-                  <span className="text-xs text-gray-400 font-sans">Published</span>
-                  <p className="text-sm font-medium font-sans text-gray-900 mt-0.5">{article.publishedAt}</p>
+                {/* Metadata buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Join Us (WhatsApp-style) */}
+                  <a 
+                    href="https://whatsapp.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold px-3 py-1.5 rounded-sm transition-all shadow-sm select-none"
+                  >
+                    <svg className="w-3.5 h-3.5 mr-1.5 fill-white text-white" viewBox="0 0 24 24">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.454 5.709 1.455h.008c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/>
+                    </svg>
+                    <span>Join Us</span>
+                  </a>
+
+                  {/* Follow Us button */}
+                  <button 
+                    onClick={() => alert("Following this publication!")}
+                    className="inline-flex items-center bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-sm transition-all shadow-sm cursor-pointer select-none"
+                  >
+                    <Plus className="w-3 h-3 mr-1 text-gray-400" />
+                    <span>Follow Us</span>
+                  </button>
+
+                  {/* Add as a preferred source on Google */}
+                  <a 
+                    href="https://news.google.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-[11px] font-medium px-3 py-1.5 rounded-sm transition-all shadow-sm select-none"
+                  >
+                    <svg className="w-3.5 h-3.5 mr-1.5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.85z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" />
+                    </svg>
+                    <span>Add as preferred source</span>
+                  </a>
                 </div>
               </div>
 
-              {/* Big Feature Image */}
-              <div className="w-full h-[400px] md:h-[550px] rounded-lg overflow-hidden bg-gray-100 mb-10 shadow-md">
-                <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              {/* Big Feature Image & Caption */}
+              <div className="w-full h-auto rounded overflow-hidden bg-gray-100 mb-2 border border-gray-200">
+                <img src={article.imageUrl} alt={article.title} className="w-full h-auto max-h-[500px] object-cover" referrerPolicy="no-referrer" />
               </div>
-              
+              <div className="text-center text-xs text-gray-500 font-sans italic mb-6">
+                {article.author.name} reporting on {article.category}
+              </div>
+
+              {/* Advertisement Banner */}
+              <div className="w-full border-t border-b border-gray-200 py-2.5 text-center my-6 bg-[#fbfbf9]">
+                <span className="text-[10px] text-gray-400 font-sans tracking-[0.2em] uppercase block">— Advertisement —</span>
+              </div>
+
+              {/* HIGHLIGHTS Box */}
+              <div className="relative border border-gray-400 rounded-sm p-5 pt-8 mt-6 mb-8 bg-[#fdfdfd] shadow-sm">
+                <div className="absolute -top-3 left-4 bg-black text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 flex items-center gap-1.5 shadow-sm border border-black">
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
+                  Highlights
+                </div>
+                <ul className="list-disc pl-5 space-y-2.5 text-sm text-[#222222] font-sans">
+                  {article.aiInsights && article.aiInsights.length > 0 ? (
+                    article.aiInsights.map((insight, idx) => (
+                      <li key={idx} className="marker:text-red-500 leading-relaxed font-medium">
+                        {insight}
+                      </li>
+                    ))
+                  ) : (
+                    <>
+                      <li className="marker:text-red-500 leading-relaxed font-medium">Critical coverage and verified updates.</li>
+                      <li className="marker:text-red-500 leading-relaxed font-medium">Live ground reporting from verified correspondents.</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+
               {/* Text-to-Speech (Audio player interface) */}
-              <div className="mb-10 bg-gray-50 border border-gray-200 p-5 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm border border-gray-100">
-                    <Volume2 className="w-6 h-6 text-[#ef3a3e]" />
+              <div className="mb-8 bg-[#fcfcfb] border border-gray-200 p-4 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 border border-gray-100 shadow-sm">
+                    <Volume2 className={`w-5 h-5 ${isSpeaking ? 'text-red-500 animate-pulse' : 'text-[#ef3a3e]'}`} />
                   </div>
                   <div>
-                    <span className="text-base font-bold font-sans text-gray-900">Listen to this article</span>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <span className="text-sm font-bold font-sans text-gray-900 block">Listen to this article</span>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
                       {isSpeaking 
                         ? (currentParagraphIdx === -1 ? "Reading story introduction..." : currentParagraphIdx !== null ? `Reading paragraph ${currentParagraphIdx + 1} of ${article.content.length}...` : "Reading story aloud...")
                         : isPaused
@@ -377,21 +450,21 @@ export default function ArticleView({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 self-end sm:self-auto">
+                <div className="flex items-center gap-2 self-end sm:self-auto">
                   {!isSpeaking ? (
                     <button
                       onClick={handleStartSpeech}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-[#ef3a3e] hover:bg-[#d12a2e] text-white rounded-full text-sm font-semibold cursor-pointer transition-colors shadow-sm"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-[#ef3a3e] hover:bg-[#d12a2e] text-white rounded text-xs font-bold cursor-pointer transition-colors shadow-sm uppercase tracking-wider"
                     >
-                      <Play className="w-4 h-4 fill-white" />
+                      <Play className="w-3.5 h-3.5 fill-white" />
                       <span>{isPaused ? "Resume" : "Listen"}</span>
                     </button>
                   ) : (
                     <button
                       onClick={handlePauseSpeech}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-black text-white rounded-full text-sm font-semibold cursor-pointer transition-colors shadow-sm"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded text-xs font-bold cursor-pointer transition-colors shadow-sm uppercase tracking-wider"
                     >
-                      <Pause className="w-4 h-4 fill-white" />
+                      <Pause className="w-3.5 h-3.5 fill-white" />
                       <span>Pause</span>
                     </button>
                   )}
@@ -399,34 +472,151 @@ export default function ArticleView({
                   {(isSpeaking || isPaused) && (
                     <button
                       onClick={handleStopSpeech}
-                      className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded-full cursor-pointer transition-colors shadow-sm"
+                      className="flex items-center justify-center w-8 h-8 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 rounded cursor-pointer transition-colors shadow-sm"
                       title="Stop Story"
                     >
-                      <Square className="w-4 h-4 fill-gray-700" />
-                      <span className="sr-only">Stop</span>
+                      <Square className="w-3.5 h-3.5 fill-gray-700" />
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Main Text Content */}
-              <div className={`space-y-8 font-serif ${getFontClass()}`}>
-                {article.content.map((para, idx) => (
-                  <p 
-                    key={idx} 
-                    className={`leading-relaxed text-gray-800 transition-all duration-300 ${
-                      currentParagraphIdx === idx 
-                        ? 'bg-yellow-50 rounded-md p-2 -mx-2' 
-                        : 'text-inherit'
-                    }`}
-                  >
-                    {para}
-                  </p>
-                ))}
+              {/* Main Text Content with inline "Also Read" boxes */}
+              <div className={`space-y-6 font-serif ${getFontClass()}`}>
+                {article.content.map((para, idx) => {
+                  const items = [];
+                  
+                  // Main paragraph element
+                  items.push(
+                    <p 
+                      key={`p-${idx}`} 
+                      className={`leading-relaxed text-[#222222] transition-all duration-300 text-base md:text-lg ${
+                        currentParagraphIdx === idx 
+                          ? 'bg-yellow-50 rounded-md p-2 -mx-2' 
+                          : 'text-inherit'
+                      }`}
+                    >
+                      {para}
+                    </p>
+                  );
+
+                  // Interjected "Also Read" boxes
+                  if ((idx === 0 || idx === 2) && relatedArticles[idx === 0 ? 0 : 1]) {
+                    const related = relatedArticles[idx === 0 ? 0 : 1];
+                    items.push(
+                      <div 
+                        key={`also-read-${idx}`}
+                        onClick={() => {
+                          window.scrollTo(0, 0);
+                          onSelectArticle(related);
+                        }}
+                        className="border-y-2 sm:border-2 border-dashed border-gray-300 hover:border-black rounded-lg p-4 my-6 flex items-center gap-5 transition-all duration-200 cursor-pointer group bg-[#fafaf9]"
+                      >
+                        {/* Thumbnail image */}
+                        <div className="w-20 h-14 md:w-28 md:h-18 shrink-0 rounded overflow-hidden relative border border-[#e0e0de] bg-gray-100 shadow-sm">
+                          <img
+                            src={related.imageUrl}
+                            alt={related.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        
+                        {/* Text */}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-bold text-red-600 uppercase tracking-wider block mb-1">
+                            Also Read
+                          </span>
+                          <h4 className="font-sans text-sm md:text-base font-bold text-gray-900 leading-snug group-hover:text-red-600 transition-colors line-clamp-2">
+                            {related.title}
+                          </h4>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return items;
+                })}
               </div>
 
-              {/* Article Footer Actions (Like, Share) */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-t border-gray-200 pt-8 mt-16">
+              {/* Bottom Share Grid */}
+              <div className="border-t border-gray-200 pt-6 mt-10">
+                <span className="text-[11px] font-extrabold text-teal-600 uppercase tracking-widest block mb-3 font-sans">
+                  Share This Article
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {/* Facebook */}
+                  <button 
+                    onClick={() => handleShare('facebook')}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#1877F2] hover:bg-[#1565C0] text-white text-xs font-bold transition-all shadow-sm cursor-pointer rounded select-none"
+                  >
+                    <Facebook className="w-3.5 h-3.5 fill-current" />
+                    <span>Facebook</span>
+                  </button>
+
+                  {/* WhatsApp */}
+                  <button 
+                    onClick={() => handleShare('whatsapp')}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold transition-all shadow-sm cursor-pointer rounded select-none"
+                  >
+                    <svg className="w-3.5 h-3.5 fill-white text-white" viewBox="0 0 24 24">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.454 5.709 1.455h.008c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/>
+                    </svg>
+                    <span>WhatsApp</span>
+                  </button>
+
+                  {/* X (Twitter) */}
+                  <button 
+                    onClick={() => handleShare('twitter')}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#000000] hover:bg-gray-900 text-white text-xs font-bold transition-all shadow-sm cursor-pointer rounded select-none"
+                  >
+                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                    <span>X (Twitter)</span>
+                  </button>
+
+                  {/* Telegram */}
+                  <button 
+                    onClick={() => handleShare('telegram')}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-[#0088cc] hover:bg-[#0077b5] text-white text-xs font-bold transition-all shadow-sm cursor-pointer rounded select-none"
+                  >
+                    <Send className="w-3.5 h-3.5 fill-current" />
+                    <span>Telegram</span>
+                  </button>
+
+                  {/* Copy Link */}
+                  <button 
+                    onClick={() => handleShare('copy')}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer rounded select-none"
+                  >
+                    <LinkIcon className="w-3.5 h-3.5" />
+                    <span>Copy Link</span>
+                  </button>
+
+                  {/* Share */}
+                  <button 
+                    onClick={() => {
+                      if (navigator.share) {
+                        navigator.share({
+                          title: article.title,
+                          text: article.subtitle,
+                          url: window.location.href
+                        }).catch(() => {});
+                      } else {
+                        handleShare('copy');
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 px-3 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer rounded select-none"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Like Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-gray-200 pb-8 pt-8">
                 <button
                   onClick={handleLike}
                   className={`flex items-center gap-2 px-6 py-3 rounded-full border transition-all duration-200 cursor-pointer text-sm font-bold ${
@@ -438,26 +628,10 @@ export default function ArticleView({
                   <Heart className={`w-5 h-5 ${hasLiked ? 'fill-[#ef3a3e] text-[#ef3a3e]' : ''}`} />
                   <span>{hasLiked ? 'Liked' : 'Like'} ({likes})</span>
                 </button>
-
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Share:</span>
-                  <button onClick={() => handleShare('twitter')} className="p-2.5 bg-gray-50 border border-gray-200 rounded-full hover:bg-[#1DA1F2] hover:text-white hover:border-[#1DA1F2] transition-colors cursor-pointer text-gray-600">
-                    <Twitter className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleShare('facebook')} className="p-2.5 bg-gray-50 border border-gray-200 rounded-full hover:bg-[#4267B2] hover:text-white hover:border-[#4267B2] transition-colors cursor-pointer text-gray-600">
-                    <Facebook className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleShare('linkedin')} className="p-2.5 bg-gray-50 border border-gray-200 rounded-full hover:bg-[#0077b5] hover:text-white hover:border-[#0077b5] transition-colors cursor-pointer text-gray-600">
-                    <Linkedin className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleShare('copy')} className="p-2.5 bg-gray-50 border border-gray-200 rounded-full hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-colors cursor-pointer text-gray-600">
-                    <LinkIcon className="w-4 h-4" />
-                  </button>
-                </div>
               </div>
 
               {/* Conversation/Comments Section */}
-              <div className="mt-16 bg-gray-50 p-8 rounded-xl border border-gray-200">
+              <div className="mt-12 bg-gray-50 p-8 rounded-xl border border-gray-200">
                 <h3 className="font-serif text-2xl font-bold mb-8 flex items-center gap-3 text-gray-900">
                   <MessageSquare className="w-6 h-6 text-[#ef3a3e]" />
                   Responses ({comments.length})

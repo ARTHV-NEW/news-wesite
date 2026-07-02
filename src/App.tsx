@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Bookmark, Heart, MessageSquare, Clock, ArrowRight, Share2, 
   Sparkles, CheckCircle2, AlertCircle, X, ShieldCheck, Mail, CreditCard,
-  Rss, ChevronRight, Volume2, User, Facebook, Twitter, Instagram, Youtube, Linkedin
+  Rss, ChevronRight, Volume2, User, Facebook, Twitter, Instagram, Youtube, Linkedin,
+  Play, FileText
 } from 'lucide-react';
 import Header from './components/Header';
 import TrendingTicker from './components/TrendingTicker';
@@ -12,8 +13,19 @@ import Newsletter from './components/Newsletter';
 import Footer from './components/Footer';
 import ProfileView from './components/ProfileView';
 import StaticPageView from './components/StaticPageView';
+import HeroCarousel from './components/HeroCarousel';
+import VisualArticleGrid from './components/VisualArticleGrid';
 import { Article, Category } from './types';
 import { INITIAL_ARTICLES } from './data/articles';
+import { 
+  subscribeArticles, 
+  subscribeMenu, 
+  subscribeAds, 
+  subscribeSettings, 
+  GeneralSettings, 
+  MenuItem, 
+  AdBanner 
+} from './services/db';
 
 export default function App() {
   // Navigation & Filtering
@@ -25,6 +37,11 @@ export default function App() {
   // Data State
   const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
   const [savedArticles, setSavedArticles] = useState<Article[]>([]);
+
+  // Real-time CMS State
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [generalSettings, setGeneralSettings] = useState<GeneralSettings | null>(null);
+  const [ads, setAds] = useState<AdBanner[]>([]);
 
   // Selected Article for Reader
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -51,6 +68,34 @@ export default function App() {
     } catch (e) {
       console.error('Failed to load bookmarks', e);
     }
+  }, []);
+
+  // Real-time Firestore subscriptions
+  useEffect(() => {
+    const unsubArticles = subscribeArticles((liveArticles) => {
+      if (liveArticles.length > 0) {
+        setArticles(liveArticles);
+      }
+    });
+
+    const unsubMenu = subscribeMenu((liveMenu) => {
+      setMenuItems(liveMenu);
+    });
+
+    const unsubSettings = subscribeSettings((liveSettings) => {
+      setGeneralSettings(liveSettings);
+    });
+
+    const unsubAds = subscribeAds((liveAds) => {
+      setAds(liveAds);
+    });
+
+    return () => {
+      unsubArticles();
+      unsubMenu();
+      unsubSettings();
+      unsubAds();
+    };
   }, []);
 
   // Save articles to LocalStorage on change
@@ -141,19 +186,19 @@ export default function App() {
   
   // Categorized groupings for the complex Frontpage layout
   const breakingNews = articles.find(a => a.isBreaking) || articles[0];
-  const moreStories = articles.filter(a => !a.isBreaking && !a.isFeatured).slice(0, 5);
-  const latestRanked = articles.slice(2, 7);
-  const techArticles = articles.filter(a => a.category === 'Technology').slice(0, 4);
+  const moreStories = articles.filter(a => !a.isBreaking && !a.isFeatured).slice(0, 6);
+  const latestRanked = articles.slice(2, 10);
+  const techArticles = articles.filter(a => a.category === 'Technology').slice(0, 5);
   const worldArticles = articles.filter(a => a.category === 'World');
   const worldFeatured = worldArticles.find(a => a.tag === 'Featured') || worldArticles[0];
   const worldSubList = worldArticles.filter(a => a.id !== worldFeatured.id).slice(0, 4);
   const scienceArticles = articles.filter(a => a.category === 'Science');
   const scienceFeatured = scienceArticles.find(a => a.isFeatured || a.tag === 'Research') || scienceArticles[0];
   const scienceList = scienceArticles.filter(a => a.id !== scienceFeatured.id).slice(0, 4);
-  const businessList = articles.filter(a => a.category === 'Business').slice(0, 4);
-  const sportsList = articles.filter(a => a.category === 'Sports').slice(0, 4);
-  const opinionArticles = articles.filter(a => a.isOpinion || a.category === 'Opinion').slice(0, 4);
-  const editorsChoices = articles.filter(a => a.isEditorsChoice).slice(0, 4);
+  const businessList = articles.filter(a => a.category === 'Business').slice(0, 5);
+  const sportsList = articles.filter(a => a.category === 'Sports').slice(0, 5);
+  const opinionArticles = articles.filter(a => a.isOpinion || a.category === 'Opinion').slice(0, 5);
+  const editorsChoices = articles.filter(a => a.isEditorsChoice).slice(0, 5);
 
   // Paginated Feed stories
   const feedArticles = articles.filter(a => !a.isBreaking && !a.isFeatured);
@@ -169,16 +214,25 @@ export default function App() {
         setActiveCategory={(cat) => {
           setActiveCategory(cat);
           setCurrentPage(1); // reset pagination
+          setSelectedArticle(null);
         }}
         searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        setSearchQuery={(query) => {
+          setSearchQuery(query);
+          if (query.trim() !== '') {
+            setSelectedArticle(null);
+          }
+        }}
         savedCount={savedArticles.length}
         onOpenSaved={() => setIsSavedDrawerOpen(true)}
         onOpenSubscribe={() => setIsSubscribeModalOpen(true)}
+        siteName={generalSettings?.siteName}
+        siteLogoText={generalSettings?.siteLogoText}
+        menuItems={menuItems}
       />
 
       {/* TRENDING TICKER LOOP */}
-      <TrendingTicker />
+      <TrendingTicker items={generalSettings?.tickerItems} />
 
       {/* MAIN CONTENT AREA */}
       {['About', 'Contact', 'Privacy', 'Terms', 'Cookies', 'Sitemap'].includes(activeCategory) ? (
@@ -270,95 +324,129 @@ export default function App() {
         <main className="flex-1 w-full">
           {/* Section 1: Editorial Hero Layout Grid */}
           <section className="max-w-7xl mx-auto px-4 md:px-8 py-8 border-b border-[#E0E0DE]">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:items-stretch">
               
-              {/* Left Side: Major Featured Post (Takes 5 Cols) */}
-              <div className="lg:col-span-5 flex flex-col space-y-4">
-                <span className="font-mono text-[10px] text-[#c8232c] font-black uppercase tracking-widest flex items-center gap-2">
-                  <span className="w-2 h-2 bg-[#c8232c] rounded-none animate-ping" />
-                  {breakingNews.category} Desk — Breaking News
-                </span>
+              {/* Left Side: Major Featured Post (Takes 5 Cols) with responsive premium carousel */}
+              <div className="lg:col-span-5 flex flex-col justify-between gap-6">
+                <HeroCarousel 
+                  articles={articles} 
+                  onSelectArticle={(art) => setSelectedArticle(art)} 
+                />
 
+                {/* Horizontal Featured Post matching rough sketch */}
                 <div 
                   onClick={() => setSelectedArticle(breakingNews)}
-                  className="w-full h-80 rounded-none overflow-hidden bg-gray-100 border border-[#E0E0DE] relative group cursor-pointer"
+                  className="group cursor-pointer flex gap-4 pt-6 border-t border-[#E0E0DE] items-start"
+                  id="featured-spotlight-post"
                 >
-                  <img 
-                    src={breakingNews.imageUrl} 
-                    alt={breakingNews.title} 
-                    className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-700"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute bottom-4 left-4 bg-[#c8232c] text-white font-mono text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-none shadow-none">
-                    {breakingNews.tag}
+                  <div className="w-5/12 aspect-[4/3] shrink-0 bg-gray-100 overflow-hidden relative border border-[#E0E0DE]">
+                    <img 
+                      src={breakingNews.imageUrl} 
+                      alt={breakingNews.title} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                      referrerPolicy="no-referrer" 
+                    />
                   </div>
-                </div>
-
-                <div>
-                  <h2 
-                    onClick={() => setSelectedArticle(breakingNews)}
-                    className="font-serif text-2xl md:text-3xl font-black leading-tight text-[#1A1A1A] hover:text-[#c8232c] transition-colors cursor-pointer tracking-tight"
-                  >
-                    {breakingNews.title}
-                  </h2>
-                  <p className="text-sm text-gray-600 mt-2.5 leading-relaxed">
-                    {breakingNews.subtitle}
-                  </p>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between h-full min-h-[110px]">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-[9px] text-[#ef3a3e] font-black uppercase tracking-wider">
+                          {breakingNews.category}
+                        </span>
+                        <span className="text-gray-300 text-[10px]">•</span>
+                        <span className="font-mono text-[9px] text-gray-400">
+                          {breakingNews.publishedAt}
+                        </span>
+                      </div>
+                      <h3 className="font-serif text-sm lg:text-base font-bold text-[#1A1A1A] group-hover:text-[#ef3a3e] leading-snug transition-colors line-clamp-2">
+                        {breakingNews.title}
+                      </h3>
+                      <p className="font-sans text-[11px] text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">
+                        {breakingNews.subtitle}
+                      </p>
+                    </div>
+                    
+                    {/* Author details matching 'author pic' */}
+                    <div className="flex items-center gap-2 mt-3">
+                      <img 
+                        src={breakingNews.author.avatar} 
+                        alt={breakingNews.author.name} 
+                        className="w-5 h-5 rounded-full object-cover border border-[#E0E0DE]"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="flex flex-col">
+                        <span className="font-sans text-[10px] font-bold text-[#1A1A1A]">
+                          {breakingNews.author.name}
+                        </span>
+                        <span className="font-sans text-[8px] text-gray-400 leading-none">
+                          {breakingNews.author.role}
+                        </span>
+                      </div>
+                      <span className="text-gray-300 text-[10px] ml-auto">•</span>
+                      <span className="font-mono text-[9px] text-gray-400">
+                        {breakingNews.readTime}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Middle Column: More Stories List (Takes 4 Cols) */}
-              <div className="lg:col-span-4 border-l border-r border-[#E0E0DE] px-0 lg:px-6 flex flex-col space-y-4">
-                <span className="font-mono text-[10px] text-gray-500 uppercase tracking-widest font-black border-b border-[#E0E0DE] pb-2">
-                  Analytical Insight →
-                </span>
+              <div className="lg:col-span-4 border-l border-r border-[#E0E0DE] px-0 lg:px-6 flex flex-col justify-between">
+                <div className="flex flex-col h-full justify-between">
+                  <span className="font-mono text-[10px] text-gray-500 uppercase tracking-widest font-black border-b border-[#E0E0DE] pb-2 mb-3">
+                    Analytical Insight →
+                  </span>
 
-                <div className="divide-y divide-[#E0E0DE]">
-                  {moreStories.map((art) => (
-                    <article 
-                      key={art.id} 
-                      onClick={() => setSelectedArticle(art)}
-                      className="py-1 first:pt-0 last:pb-0 flex gap-4 items-start group cursor-pointer"
-                    >
-                      <div className="w-18 h-14 shrink-0 rounded-none bg-gray-200 overflow-hidden relative border border-[#E0E0DE]">
-                        <img src={art.imageUrl} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-mono text-[9px] text-[#c8232c] font-black uppercase tracking-wider">{art.category}</span>
-                        <h3 className="font-serif text-xs font-bold text-[#1A1A1A] group-hover:text-[#c8232c] leading-snug transition-colors line-clamp-2 mt-0.5">
-                          {art.title}
-                        </h3>
-                        <span className="font-mono text-[9px] text-gray-400 mt-1 block">{art.readTime}</span>
-                      </div>
-                    </article>
-                  ))}
+                  <div className="flex-1 flex flex-col justify-between divide-y divide-[#E0E0DE]">
+                    {moreStories.slice(0, 6).map((art) => (
+                      <article 
+                        key={art.id} 
+                        onClick={() => setSelectedArticle(art)}
+                        className="py-1.5 first:pt-0 last:pb-0 flex gap-3.5 items-center group cursor-pointer"
+                      >
+                        <div className="w-14 h-10 shrink-0 rounded-none bg-gray-100 overflow-hidden relative border border-[#E0E0DE]">
+                          <img src={art.imageUrl} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="font-mono text-[9px] text-[#ef3a3e] font-black uppercase tracking-wider">{art.category}</span>
+                          <h3 className="font-serif text-[11px] lg:text-xs font-bold text-[#1A1A1A] group-hover:text-[#ef3a3e] leading-snug transition-colors line-clamp-2 mt-0.5">
+                            {art.title}
+                          </h3>
+                          <span className="font-mono text-[9px] text-gray-400 mt-0.5 block">{art.readTime}</span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Right Column: Latest Ranked News (Takes 3 Cols) */}
-              <div className="lg:col-span-3 flex flex-col space-y-4">
-                <span className="font-serif text-base font-black border-b border-[#1A1A1A] pb-2">
-                  Latest Hotspots
-                </span>
+              <div className="lg:col-span-3 flex flex-col justify-between">
+                <div className="flex flex-col h-full justify-between">
+                  <span className="font-serif text-base font-black border-b border-[#1A1A1A] pb-2 mb-3">
+                    Latest Hotspots
+                  </span>
 
-                <div className="divide-y divide-[#E0E0DE]">
-                  {latestRanked.map((art, idx) => (
-                    <article 
-                      key={art.id} 
-                      onClick={() => setSelectedArticle(art)}
-                      className="py-1 flex items-start gap-3.5 group cursor-pointer first:pt-0 last:pb-0"
-                    >
-                      <span className="font-mono text-lg font-black text-[#c8232c]/30 group-hover:text-[#c8232c] transition-colors leading-none pt-0.5">
-                        0{idx + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <h4 className="font-sans text-xs font-bold text-[#1A1A1A] leading-snug group-hover:text-[#c8232c] transition-colors line-clamp-3">
-                          {art.title}
-                        </h4>
-                        <span className="font-mono text-[9px] text-gray-400 uppercase tracking-widest mt-1 block">{art.category} Desk</span>
-                      </div>
-                    </article>
-                  ))}
+                  <div className="flex-1 flex flex-col justify-between divide-y divide-[#E0E0DE]">
+                    {latestRanked.slice(0, 8).map((art, idx) => (
+                      <article 
+                        key={art.id} 
+                        onClick={() => setSelectedArticle(art)}
+                        className="py-1.5 flex items-start gap-3 group cursor-pointer first:pt-0 last:pb-0"
+                      >
+                        <span className="font-mono text-base font-black text-[#ef3a3e]/30 group-hover:text-[#ef3a3e] transition-colors leading-none pt-0.5 shrink-0">
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-sans text-[11px] lg:text-xs font-bold text-[#1A1A1A] leading-snug group-hover:text-[#ef3a3e] transition-colors line-clamp-2">
+                            {art.title}
+                          </h4>
+                          <span className="font-mono text-[9px] text-gray-400 uppercase tracking-widest mt-0.5 block">{art.category} Desk</span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -381,7 +469,7 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                 {techArticles.map((art) => (
                   <article 
                     key={art.id} 
@@ -410,6 +498,12 @@ export default function App() {
               </div>
             </div>
           </section>
+
+          {/* Section 2.5: Visual Showcase Grid (New Competitor-inspired Image Grid) */}
+          <VisualArticleGrid 
+            articles={articles} 
+            onSelectArticle={(art) => setSelectedArticle(art)} 
+          />
 
           {/* Section 3: World Affairs Column - Magazine Style Layout */}
           <section className="py-10 border-b border-[#E0E0DE]">
@@ -581,25 +675,89 @@ export default function App() {
                       </button>
                     </div>
 
-                    <div className="space-y-3.5">
-                      {businessList.map((art) => (
-                        <article 
-                           key={art.id} 
-                           onClick={() => setSelectedArticle(art)}
-                           className="flex gap-3.5 items-start group cursor-pointer pb-3 border-b border-[#E0E0DE] last:border-none last:pb-0"
-                        >
-                          <div className="w-14 h-12 shrink-0 rounded-none bg-gray-200 overflow-hidden relative border border-[#E0E0DE]">
-                            <img src={art.imageUrl} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
+                    {(() => {
+                      const firstArt = businessList[0];
+                      const remainingArts = businessList.slice(1);
+                      return (
+                        <div className="flex flex-col space-y-5">
+                          {/* Large featured card matching the top portion of the uploaded image */}
+                          {firstArt && (
+                            <article
+                              onClick={() => setSelectedArticle(firstArt)}
+                              className="group cursor-pointer flex flex-col relative w-full overflow-hidden rounded-xl border border-[#E0E0DE] bg-black shadow-sm"
+                            >
+                              {/* Large 16:10 or 16:9 Image */}
+                              <div className="w-full aspect-[16/10] overflow-hidden relative">
+                                <img
+                                  src={firstArt.imageUrl}
+                                  alt={firstArt.title}
+                                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                                  referrerPolicy="no-referrer"
+                                />
+                                {/* Vignette/Gradient overlay */}
+                                <div 
+                                  className="absolute inset-0 z-10 pointer-events-none"
+                                  style={{
+                                    background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%)'
+                                  }}
+                                />
+                                
+                                {/* Document/Play Icon Overlay and Title positioned absolutely at bottom */}
+                                <div className="absolute bottom-0 left-0 w-full p-4 z-20 flex items-start select-text">
+                                  
+                                  {/* Title Headline on top of image */}
+                                  <div className="min-w-0 flex-1">
+                                    <h4 className="font-serif text-xs md:text-sm font-extrabold text-white leading-tight tracking-tight group-hover:text-red-400 transition-colors line-clamp-2">
+                                      {firstArt.title}
+                                    </h4>
+                                    <div className="flex items-center gap-2 mt-1 text-[9px] font-mono text-gray-300">
+                                      <span>{firstArt.publishedAt}</span>
+                                      <span>•</span>
+                                      <span>{firstArt.readTime}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </article>
+                          )}
+
+                          {/* Small list items below it */}
+                          <div className="space-y-4">
+                            {remainingArts.map((art, idx) => {
+                              return (
+                                <article
+                                  key={art.id}
+                                  onClick={() => setSelectedArticle(art)}
+                                  className="flex gap-4 items-center group cursor-pointer"
+                                >
+                                  {/* Left Thumbnail */}
+                                  <div className="w-24 h-18 md:w-28 md:h-20 shrink-0 rounded-lg overflow-hidden relative border border-[#E0E0DE] bg-gray-100 shadow-sm">
+                                    <img
+                                      src={art.imageUrl}
+                                      alt={art.title}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </div>
+
+                                  {/* Right Title Content */}
+                                  <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                    <h4 className="font-sans text-[11px] md:text-xs font-bold text-[#1A1A1A] leading-snug group-hover:text-[#c8232c] transition-colors line-clamp-3">
+                                      {art.title}
+                                    </h4>
+                                    <div className="flex items-center gap-1.5 mt-1 text-[9px] text-gray-400 font-mono">
+                                      <span className="uppercase tracking-wider font-semibold text-[#ef3a3e]">{art.category}</span>
+                                      <span>•</span>
+                                      <span>{art.publishedAt}</span>
+                                    </div>
+                                  </div>
+                                </article>
+                              );
+                            })}
                           </div>
-                          <div className="min-w-0">
-                            <h4 className="font-serif text-xs font-bold text-gray-950 group-hover:text-[#c8232c] leading-snug transition-colors line-clamp-2">
-                              {art.title}
-                            </h4>
-                            <span className="text-[9px] text-gray-400 font-mono mt-1 block">{art.publishedAt}</span>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Sports desk list */}
@@ -616,25 +774,89 @@ export default function App() {
                       </button>
                     </div>
 
-                    <div className="space-y-3.5">
-                      {sportsList.map((art) => (
-                        <article 
-                          key={art.id} 
-                          onClick={() => setSelectedArticle(art)}
-                          className="flex gap-3.5 items-start group cursor-pointer pb-3 border-b border-[#E0E0DE] last:border-none last:pb-0"
-                        >
-                          <div className="w-14 h-12 shrink-0 rounded-none bg-gray-200 overflow-hidden relative border border-[#E0E0DE]">
-                            <img src={art.imageUrl} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
+                    {(() => {
+                      const firstArt = sportsList[0];
+                      const remainingArts = sportsList.slice(1);
+                      return (
+                        <div className="flex flex-col space-y-5">
+                          {/* Large featured card matching the top portion of the uploaded image */}
+                          {firstArt && (
+                            <article
+                              onClick={() => setSelectedArticle(firstArt)}
+                              className="group cursor-pointer flex flex-col relative w-full overflow-hidden rounded-xl border border-[#E0E0DE] bg-black shadow-sm"
+                            >
+                              {/* Large 16:10 or 16:9 Image */}
+                              <div className="w-full aspect-[16/10] overflow-hidden relative">
+                                <img
+                                  src={firstArt.imageUrl}
+                                  alt={firstArt.title}
+                                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                                  referrerPolicy="no-referrer"
+                                />
+                                {/* Vignette/Gradient overlay */}
+                                <div 
+                                  className="absolute inset-0 z-10 pointer-events-none"
+                                  style={{
+                                    background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 100%)'
+                                  }}
+                                />
+                                
+                                {/* Document/Play Icon Overlay and Title positioned absolutely at bottom */}
+                                <div className="absolute bottom-0 left-0 w-full p-4 z-20 flex items-start select-text">
+                                  
+                                  {/* Title Headline on top of image */}
+                                  <div className="min-w-0 flex-1">
+                                    <h4 className="font-serif text-xs md:text-sm font-extrabold text-white leading-tight tracking-tight group-hover:text-blue-400 transition-colors line-clamp-2">
+                                      {firstArt.title}
+                                    </h4>
+                                    <div className="flex items-center gap-2 mt-1 text-[9px] font-mono text-gray-300">
+                                      <span>{firstArt.publishedAt}</span>
+                                      <span>•</span>
+                                      <span>{firstArt.readTime}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </article>
+                          )}
+
+                          {/* Small list items below it */}
+                          <div className="space-y-4">
+                            {remainingArts.map((art, idx) => {
+                              return (
+                                <article
+                                  key={art.id}
+                                  onClick={() => setSelectedArticle(art)}
+                                  className="flex gap-4 items-center group cursor-pointer"
+                                >
+                                  {/* Left Thumbnail */}
+                                  <div className="w-24 h-18 md:w-28 md:h-20 shrink-0 rounded-lg overflow-hidden relative border border-[#E0E0DE] bg-gray-100 shadow-sm">
+                                    <img
+                                      src={art.imageUrl}
+                                      alt={art.title}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </div>
+
+                                  {/* Right Title Content */}
+                                  <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                    <h4 className="font-sans text-[11px] md:text-xs font-bold text-[#1A1A1A] leading-snug group-hover:text-[#1a3a5c] transition-colors line-clamp-3">
+                                      {art.title}
+                                    </h4>
+                                    <div className="flex items-center gap-1.5 mt-1 text-[9px] text-gray-400 font-mono">
+                                      <span className="uppercase tracking-wider font-semibold text-[#1a3a5c]">{art.category}</span>
+                                      <span>•</span>
+                                      <span>{art.publishedAt}</span>
+                                    </div>
+                                  </div>
+                                </article>
+                              );
+                            })}
                           </div>
-                          <div className="min-w-0">
-                            <h4 className="font-serif text-xs font-bold text-gray-950 group-hover:text-[#c8232c] leading-snug transition-colors line-clamp-2">
-                              {art.title}
-                            </h4>
-                            <span className="text-[9px] text-gray-400 font-mono mt-1 block">{art.publishedAt}</span>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -999,6 +1221,7 @@ export default function App() {
         onSelectCategory={(cat) => {
           setActiveCategory(cat);
           setSearchQuery('');
+          setSelectedArticle(null);
           window.scrollTo(0, 0);
         }}
         onOpenSubscribe={() => setIsSubscribeModalOpen(true)}

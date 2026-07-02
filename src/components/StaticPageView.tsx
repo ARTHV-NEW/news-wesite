@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Category } from '../types';
+import { subscribePages, PageContent } from '../services/db';
 
 interface StaticPageViewProps {
   pageType: Category;
@@ -8,8 +9,25 @@ interface StaticPageViewProps {
 }
 
 export default function StaticPageView({ pageType, onNavigateBack }: StaticPageViewProps) {
+  const [livePages, setLivePages] = useState<PageContent[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = subscribePages((pages) => {
+      setLivePages(pages);
+    });
+    return () => unsubscribe();
+  }, []);
   
   const getPageContent = () => {
+    // Attempt to find from live Firestore pages first
+    const livePage = livePages.find(p => p.id === pageType);
+    if (livePage) {
+      return {
+        title: livePage.title,
+        content: livePage.content
+      };
+    }
+
     switch (pageType) {
       case 'About':
         return {

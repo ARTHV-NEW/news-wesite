@@ -62,6 +62,7 @@ interface UserProfile {
   lastName: string;
   bio?: string;
   avatarUrl?: string;
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {
