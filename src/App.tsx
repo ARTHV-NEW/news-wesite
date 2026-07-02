@@ -403,17 +403,27 @@ export default function App() {
                       <article 
                         key={art.id} 
                         onClick={() => setSelectedArticle(art)}
-                        className="py-1.5 first:pt-0 last:pb-0 flex gap-3.5 items-center group cursor-pointer"
+                        className="py-3 first:pt-0 last:pb-0 flex gap-4 items-center group cursor-pointer"
                       >
-                        <div className="w-14 h-10 shrink-0 rounded-none bg-gray-100 overflow-hidden relative border border-[#E0E0DE]">
-                          <img src={art.imageUrl} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
+                        {/* Beautifully rounded image container with premium shadow and border */}
+                        <div className="w-28 h-20 shrink-0 rounded-xl bg-gray-100 overflow-hidden relative border border-gray-100 shadow-md group-hover:shadow-lg transition-all duration-300">
+                          <img 
+                            src={art.imageUrl} 
+                            alt={art.title} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                            referrerPolicy="no-referrer" 
+                          />
                         </div>
+                        {/* Right Content Area: Title on top, category and date below */}
                         <div className="min-w-0 flex-1">
-                          <span className="font-mono text-[9px] text-[#ef3a3e] font-black uppercase tracking-wider">{art.category}</span>
-                          <h3 className="font-serif text-[11px] lg:text-xs font-bold text-[#1A1A1A] group-hover:text-[#ef3a3e] leading-snug transition-colors line-clamp-2 mt-0.5">
+                          <h3 className="font-sans font-bold text-xs md:text-[13px] lg:text-[13px] text-gray-900 leading-snug tracking-tight group-hover:text-[#ef3a3e] transition-colors line-clamp-2">
                             {art.title}
                           </h3>
-                          <span className="font-mono text-[9px] text-gray-400 mt-0.5 block">{art.readTime}</span>
+                          <div className="flex items-center gap-1.5 mt-2 text-[9px] font-bold tracking-wider font-sans uppercase">
+                            <span className="text-[#ef3a3e]">{art.category}</span>
+                            <span className="text-gray-300">•</span>
+                            <span className="text-gray-400 font-mono tracking-normal normal-case font-medium">{art.publishedAt}</span>
+                          </div>
                         </div>
                       </article>
                     ))}

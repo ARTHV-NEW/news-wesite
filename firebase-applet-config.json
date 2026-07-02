@@ -3,7 +3,7 @@
   "appId": "1:781444587120:web:54d0fd5345948bb2df9eb5",
   "apiKey": "AIzaSyCXP78DoutpD4IO3NDt6Zgdn8SpswnMLhs",
   "authDomain": "news-88fb3.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-pulsenews-1ac12794-fb44-4e4e-bd47-c252f05ae3a5",
+  "firestoreDatabaseId": "default",
   "storageBucket": "news-88fb3.firebasestorage.app",
   "messagingSenderId": "781444587120",
   "measurementId": ""
