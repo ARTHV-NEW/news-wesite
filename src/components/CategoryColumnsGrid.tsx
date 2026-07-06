@@ -54,7 +54,7 @@ export default function CategoryColumnsGrid({ articles, onSelectArticle, onSelec
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                   <div className="absolute bottom-0 left-0 p-5 w-full">
-                    <h3 className="font-sans text-lg font-black text-white group-hover:text-[#ef3a3e] transition-colors leading-tight mb-2.5">
+                    <h3 className="font-sans text-base font-black text-white group-hover:text-[#ef3a3e] transition-colors leading-tight mb-2.5">
                       {mainArticle.title}
                     </h3>
                     <div className="text-gray-200 text-[11px] font-sans font-semibold flex items-center">

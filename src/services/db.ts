@@ -198,7 +198,7 @@ export async function seedDatabaseIfEmpty() {
   try {
     const articlesSnap = await getDocs(collection(db, 'articles'));
     if (!articlesSnap.empty) {
-      console.log('Database already seeded. Checking and updating slugs...');
+      return;
       for (const d of articlesSnap.docs) {
         const data = d.data();
         if (!data.slug) {
@@ -523,6 +523,14 @@ export async function seedDatabaseIfEmpty() {
       await setDoc(doc(db, 'liveblogs', liveblog.id), liveblog);
     }
 
+    // Mark seeding as complete
+    await setDoc(doc(db, 'settings', 'general'), {
+      siteName: 'Pulse News',
+      siteLogoText: 'PULSE',
+      siteSubtitle: 'Global Reporting',
+      tickerItems: ['BREAKING', 'LIVE UPDATES']
+    });
+
     console.log('Database seeding successfully finished!');
   } catch (error) {
     console.error('Error seeding database: ', error);
@@ -671,6 +679,9 @@ export async function deleteMediaAsset(id: string) {
 // Pages
 export async function savePageContent(page: PageContent) {
   await setDoc(doc(db, 'pages', page.id), page);
+}
+export async function deletePageContent(id: string) {
+  await deleteDoc(doc(db, 'pages', id));
 }
 
 // Ads

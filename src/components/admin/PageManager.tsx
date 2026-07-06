@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, CheckCircle2, FileText, Link2 } from 'lucide-react';
-import { subscribePages, savePageContent, PageContent, generateSlug, getUniqueSlug, handleSlugChange } from '../../services/db';
+import { Save, AlertCircle, CheckCircle2, FileText, Link2, Plus, Trash2 } from 'lucide-react';
+import { subscribePages, savePageContent, deletePageContent, PageContent, generateSlug, getUniqueSlug, handleSlugChange } from '../../services/db';
 
 export default function PageManager() {
   const [pages, setPages] = useState<PageContent[]>([]);
@@ -13,15 +13,20 @@ export default function PageManager() {
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribePages((livePages) => {
       setPages(livePages);
+      if (livePages.length > 0 && !livePages.find(p => p.id === selectedPageId) && !isCreating) {
+        setSelectedPageId(livePages[0].id);
+      }
     });
     return () => unsubscribe();
-  }, []);
+  }, [selectedPageId, isCreating]);
 
   useEffect(() => {
+    if (isCreating) return;
     const page = pages.find(p => p.id === selectedPageId);
     if (page) {
       setTitle(page.title);
@@ -30,7 +35,31 @@ export default function PageManager() {
       setContent(page.content);
       setSaveStatus('idle');
     }
-  }, [selectedPageId, pages]);
+  }, [selectedPageId, pages, isCreating]);
+
+  const handleCreateNew = () => {
+    setIsCreating(true);
+    setSelectedPageId('');
+    setTitle('');
+    setSlug('');
+    setPrevSlug('');
+    setContent('');
+    setSaveStatus('idle');
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this page?')) {
+      try {
+        await deletePageContent(id);
+        if (selectedPageId === id) {
+          setIsCreating(false);
+          setSelectedPageId(pages[0]?.id || '');
+        }
+      } catch (err) {
+        console.error('Error deleting page: ', err);
+      }
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,23 +68,28 @@ export default function PageManager() {
     setIsSaving(true);
     setSaveStatus('idle');
 
-    const resolvedBaseSlug = generateSlug(slug || selectedPageId);
-    const resolvedSlug = await getUniqueSlug('pages', resolvedBaseSlug, selectedPageId);
+    const idToSave = isCreating ? generateSlug(title) : selectedPageId;
+    const resolvedBaseSlug = generateSlug(slug || title);
+    const resolvedSlug = await getUniqueSlug('pages', resolvedBaseSlug, idToSave);
 
     // Setup 301 Redirect if page slug changed
-    if (prevSlug && prevSlug !== resolvedSlug) {
+    if (!isCreating && prevSlug && prevSlug !== resolvedSlug) {
       console.log(`Setting up 301 Redirect for page: ${prevSlug} -> ${resolvedSlug}`);
       await handleSlugChange('pages', prevSlug, resolvedSlug);
     }
 
     try {
       await savePageContent({
-        id: selectedPageId,
+        id: idToSave,
         title,
         content,
         slug: resolvedSlug
       });
       setSaveStatus('success');
+      if (isCreating) {
+        setIsCreating(false);
+        setSelectedPageId(idToSave);
+      }
     } catch (err) {
       console.error('Error saving page: ', err);
       setSaveStatus('error');
@@ -71,26 +105,43 @@ export default function PageManager() {
           <h2 className="text-xl font-black text-gray-900 tracking-tight font-serif">Static Pages Copy Deck</h2>
           <p className="text-sm text-gray-500">Edit informational, compliance, and legal pages instantly in real-time.</p>
         </div>
+        <button
+          onClick={handleCreateNew}
+          className="flex items-center gap-2 bg-[#1A1A1A] hover:bg-black text-white px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-none transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Create New Page
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1 space-y-2">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Page to Edit</label>
-          {['About', 'Contact', 'Privacy', 'Terms', 'Cookies', 'Sitemap'].map(id => {
-            const isActive = selectedPageId === id;
+          {pages.map(page => {
+            const isActive = selectedPageId === page.id && !isCreating;
             return (
-              <button
-                key={id}
-                onClick={() => setSelectedPageId(id)}
-                className={`w-full flex items-center gap-2.5 px-4 py-3 text-left text-sm font-semibold rounded-lg border transition-colors ${
+              <div key={page.id} className={`flex items-center justify-between rounded-lg border transition-colors ${
                   isActive 
                     ? 'bg-red-50 text-red-700 border-red-200' 
                     : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <FileText className={`w-4 h-4 ${isActive ? 'text-red-700' : 'text-gray-400'}`} />
-                {id} Page
-              </button>
+                }`}>
+                <button
+                  onClick={() => {
+                    setIsCreating(false);
+                    setSelectedPageId(page.id);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-left text-sm font-semibold"
+                >
+                  <FileText className={`w-4 h-4 ${isActive ? 'text-red-700' : 'text-gray-400'}`} />
+                  {page.title}
+                </button>
+                <button
+                  onClick={() => handleDelete(page.id)}
+                  className="p-2 text-gray-400 hover:text-red-600 transition-colors mr-2"
+                  title="Delete Page"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             );
           })}
         </div>
@@ -98,7 +149,7 @@ export default function PageManager() {
         <div className="lg:col-span-3">
           <form onSubmit={handleSave} className="bg-white rounded-xl border border-gray-200 p-6 space-y-4 shadow-sm">
             <h3 className="text-lg font-black font-serif text-gray-900 tracking-tight border-b border-gray-100 pb-3">
-              Editing: {selectedPageId} Page
+              {isCreating ? 'Create New Page' : `Editing: ${title} Page`}
             </h3>
 
             {saveStatus === 'success' && (
@@ -157,7 +208,7 @@ export default function PageManager() {
                 disabled={isSaving}
                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
               >
-                <Save className="w-4 h-4" /> {isSaving ? 'Synchronizing...' : 'Save Page Copy'}
+                <Save className="w-4 h-4" /> {isSaving ? 'Synchronizing...' : (isCreating ? 'Create Page' : 'Save Page Copy')}
               </button>
             </div>
           </form>
