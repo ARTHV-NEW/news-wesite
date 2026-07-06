@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
+
   Bookmark, Heart, Send, Volume2, 
   MessageSquare, User, Clock, Share2, ZoomIn, ZoomOut,
   Play, Pause, Square, AlertCircle, ArrowLeft, Twitter, Facebook, Linkedin, Link as LinkIcon,
   CheckCircle2, Plus, FileText
 } from 'lucide-react';
 import { Article, Comment } from '../types';
+import FollowSocials from "./FollowSocials";
 
 interface ArticleViewProps {
   article: Article;
@@ -26,6 +29,7 @@ export default function ArticleView({
   onToggleLike,
   onSelectArticle
 }: ArticleViewProps) {
+  const navigate = useNavigate();
   // Reader Settings
   const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>('md');
   const [theme, setTheme] = useState<'light' | 'sepia' | 'dark'>('light');
@@ -320,7 +324,7 @@ export default function ArticleView({
               <div className="mb-3 flex items-center gap-2">
                 <span 
                   onClick={() => {
-                    window.location.href = `/category/${article.category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                    navigate(`/category/${article.category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
                   }}
                   className="inline-block bg-[#00a859] text-white text-[11px] font-black tracking-widest px-3 py-1 uppercase rounded-none shadow-sm select-none cursor-pointer hover:bg-[#00904f] transition-colors"
                 >
@@ -329,7 +333,7 @@ export default function ArticleView({
                 {article.tag && (
                   <span 
                     onClick={() => {
-                      window.location.href = `/tag/${article.tag.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                      navigate(`/tag/${article.tag.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
                     }}
                     className="inline-block bg-gray-200 hover:bg-gray-300 transition-colors text-gray-800 text-[11px] font-bold tracking-wider px-3 py-1 uppercase rounded-none shadow-sm select-none cursor-pointer"
                   >
@@ -353,7 +357,7 @@ export default function ArticleView({
                 {/* Author Info */}
                 <div 
                   onClick={() => {
-                    window.location.href = `/author/${article.author.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                    navigate(`/author/${article.author.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
                   }}
                   className="flex items-center gap-3 cursor-pointer group select-none"
                 >
@@ -745,7 +749,7 @@ export default function ArticleView({
                   
                   <button 
                     onClick={() => {
-                      window.location.href = `/author/${article.author.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                      navigate(`/author/${article.author.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
                     }}
                     className="mt-6 w-full py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-800 text-sm font-bold rounded-lg border border-gray-200 transition-colors cursor-pointer shadow-sm"
                   >
@@ -814,6 +818,7 @@ export default function ArticleView({
                 </div>
               </div>
 
+              <FollowSocials />
             </div>
           </aside>
         </div>

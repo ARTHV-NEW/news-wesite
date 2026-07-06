@@ -4,9 +4,10 @@ import { Article } from '../types';
 interface CategoryColumnsGridProps {
   articles: Article[];
   onSelectArticle: (article: Article) => void;
+  onSelectCategory: (category: string) => void;
 }
 
-export default function CategoryColumnsGrid({ articles, onSelectArticle }: CategoryColumnsGridProps) {
+export default function CategoryColumnsGrid({ articles, onSelectArticle, onSelectCategory }: CategoryColumnsGridProps) {
   const categories = ['Business', 'Technology', 'Science'];
 
   return (
@@ -30,7 +31,10 @@ export default function CategoryColumnsGrid({ articles, onSelectArticle }: Categ
                       {category} Desk
                     </h2>
                   </div>
-                  <button className="font-sans text-[11px] font-bold text-[#0f2130] uppercase tracking-wider hover:text-[#CC0000] transition-colors flex items-center">
+                  <button 
+                    onClick={() => onSelectCategory(category)}
+                    className="font-sans text-[11px] font-bold text-[#0f2130] uppercase tracking-wider hover:text-[#CC0000] transition-colors flex items-center"
+                  >
                     ALL <span className="ml-1 text-sm leading-none">→</span>
                   </button>
                 </div>
@@ -50,7 +54,7 @@ export default function CategoryColumnsGrid({ articles, onSelectArticle }: Categ
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                   <div className="absolute bottom-0 left-0 p-5 w-full">
-                    <h3 className="font-sans text-xl font-black text-[#FF5252] group-hover:text-red-400 transition-colors leading-tight mb-2.5">
+                    <h3 className="font-sans text-lg font-black text-white group-hover:text-[#ef3a3e] transition-colors leading-tight mb-2.5">
                       {mainArticle.title}
                     </h3>
                     <div className="text-gray-200 text-[11px] font-sans font-semibold flex items-center">

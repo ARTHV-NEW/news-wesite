@@ -98,7 +98,26 @@ export default function Header({
 
   // Curate a minimalist layout: Core sections visible directly, others inside "More" dropdown
   // We showcase the first 6 main categories inline, and tuck the rest under "More"
-  const primaryCount = categories.length > 6 ? 6 : categories.length;
+  const [primaryCount, setPrimaryCount] = useState<number>(categories.length);
+  const navRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!navRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const containerWidth = entry.contentRect.width;
+        const itemWidth = 100;
+        const maxItems = Math.max(1, Math.floor(containerWidth / itemWidth));
+        if (maxItems >= categories.length) {
+          setPrimaryCount(categories.length);
+        } else {
+          setPrimaryCount(maxItems - 1);
+        }
+      }
+    });
+    observer.observe(navRef.current);
+    return () => observer.disconnect();
+  }, [categories.length]);
   const primaryCategories = categories.slice(0, primaryCount);
   const secondaryCategories = categories.slice(primaryCount);
 
@@ -137,10 +156,10 @@ export default function Header({
             </button>
             <span className="text-gray-200">|</span>
             <div className="flex items-center gap-3">
-              <a href="#" className="hover:text-red-600 transition-colors"><Facebook className="w-3.5 h-3.5" /></a>
-              <a href="#" className="hover:text-red-600 transition-colors"><Instagram className="w-3.5 h-3.5" /></a>
-              <a href="#" className="hover:text-red-600 transition-colors"><Twitter className="w-3.5 h-3.5" /></a>
-              <a href="#" className="hover:text-red-600 transition-colors"><Youtube className="w-3.5 h-3.5" /></a>
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors"><Facebook className="w-3.5 h-3.5" /></a>
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors"><Instagram className="w-3.5 h-3.5" /></a>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors"><Twitter className="w-3.5 h-3.5" /></a>
+              <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors"><Youtube className="w-3.5 h-3.5" /></a>
             </div>
           </div>
         </div>
@@ -272,7 +291,7 @@ export default function Header({
             </div>
 
             {/* Curated Minimalist Navigation Tabs */}
-            <div className="flex items-center gap-1.5 flex-1 justify-center md:justify-start">
+            <div ref={navRef} className="flex items-center gap-1.5 flex-1 justify-center min-w-0">
               {primaryCategories.map((cat) => (
                 <button
                   key={cat}
