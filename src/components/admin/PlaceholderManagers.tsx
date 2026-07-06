@@ -1,57 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, CheckCircle2, UserPlus, Trash2, Mail, Send, ArrowUpRight, 
   BarChart3, RefreshCw, Eye, Globe, Sliders, ChevronRight, Save, 
   Play, Download, Upload, AlertCircle, RefreshCcw, Lock, HardDrive, 
-  Search, ShieldAlert, ArrowRight, BookOpen, Clock, Heart, MessageSquare
+  Search, ShieldAlert, ArrowRight, BookOpen, Clock, Heart, MessageSquare, Link2
 } from 'lucide-react';
+import { AuthorItem } from '../../types';
+import { 
+  subscribeAuthors, saveAuthorItem, deleteAuthorItem,
+  generateSlug, getUniqueSlug, handleSlugChange
+} from '../../services/db';
 
 // ==========================================
 // 1. Authors Manager
 // ==========================================
 export function AuthorsManager() {
-  const [authors, setAuthors] = useState([
-    { id: 1, name: 'Sarah Jenkins', role: 'Politics Editor', articles: 142, email: 's.jenkins@pulsenews.com', status: 'Active', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=60' },
-    { id: 2, name: 'David Chen', role: 'Business Correspondent', articles: 98, email: 'd.chen@pulsenews.com', status: 'Active', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=60' },
-    { id: 3, name: 'Michael T.', role: 'Culture & Entertainment Desk', articles: 76, email: 'm.t@pulsenews.com', status: 'Active', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop&q=60' },
-    { id: 4, name: 'Leah Al-Fayed', role: 'Geopolitics Writer', articles: 114, email: 'l.alfayed@pulsenews.com', status: 'On Leave', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&auto=format&fit=crop&q=60' }
-  ]);
-
+  const [authors, setAuthors] = useState<AuthorItem[]>([]);
   const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
   const [role, setRole] = useState('Staff Writer');
   const [email, setEmail] = useState('');
   const [success, setSuccess] = useState('');
 
-  const handleAdd = (e: React.FormEvent) => {
+  useEffect(() => {
+    const unsubscribe = subscribeAuthors((liveAuthors) => {
+      setAuthors(liveAuthors);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Sync slug on name changes
+  useEffect(() => {
+    setSlug(generateSlug(name));
+  }, [name]);
+
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
-    const newAuthor = {
-      id: Date.now(),
+    const id = generateSlug(name);
+    const resolvedSlug = await getUniqueSlug('authors', slug || id, id);
+
+    const newAuthor: AuthorItem = {
+      id,
       name,
+      slug: resolvedSlug,
       role,
-      articles: 0,
       email,
+      articles: 0,
       status: 'Active',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=60'
     };
 
-    setAuthors([...authors, newAuthor]);
-    setName('');
-    setEmail('');
-    setSuccess(`Correspondent "${name}" added successfully.`);
-    setTimeout(() => setSuccess(''), 3000);
+    try {
+      await saveAuthorItem(newAuthor);
+      setName('');
+      setEmail('');
+      setSuccess(`Correspondent "${name}" registered successfully.`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Error adding author: ', err);
+    }
+  };
+
+  const handleDelete = async (id: string, authorName: string) => {
+    if (window.confirm(`Are you sure you want to revoke credentials and delete the profile of "${authorName}"?`)) {
+      try {
+        await deleteAuthorItem(id);
+        setSuccess(`Profile of "${authorName}" successfully removed.`);
+        setTimeout(() => setSuccess(''), 3000);
+      } catch (err) {
+        console.error('Error deleting author:', err);
+      }
+    }
   };
 
   return (
     <div className="space-y-6 font-sans">
       <div className="border-b border-gray-100 pb-4">
         <h2 className="text-xl font-black text-gray-900 tracking-tight font-serif">Editorial Correspondents Directory</h2>
-        <p className="text-sm text-gray-500">Add, manage, and audit editorial staff accounts, desk assignments, and reporting metrics.</p>
+        <p className="text-sm text-gray-500">Add, manage, and audit editorial staff accounts, desk assignments, and reporting metrics in real-time.</p>
       </div>
 
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2">
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2 animate-fade-in">
           <CheckCircle2 className="w-5 h-5 text-green-500" />
           {success}
         </div>
@@ -74,32 +106,40 @@ export function AuthorsManager() {
                 <tr key={a.id} className="hover:bg-gray-50/20 transition-colors">
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <img src={a.avatar} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-100" />
+                      <img src={a.avatar} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-100" referrerPolicy="no-referrer" />
                       <div>
                         <div className="font-bold text-gray-900">{a.name}</div>
                         <div className="text-xs text-gray-400">{a.email}</div>
+                        <div className="text-[10px] font-mono text-gray-500">/author/{a.slug || generateSlug(a.name)}</div>
                       </div>
                     </div>
                   </td>
                   <td className="py-4 px-4 text-sm font-medium text-gray-700">{a.role}</td>
-                  <td className="py-4 px-4 text-sm text-gray-500">{a.articles}</td>
+                  <td className="py-4 px-4 text-sm text-gray-500">{a.articles || 0}</td>
                   <td className="py-4 px-4">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase ${
                       a.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-yellow-50 text-yellow-700 border border-yellow-100'
                     }`}>
-                      {a.status}
+                      {a.status || 'Active'}
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right">
                     <button 
-                      onClick={() => setAuthors(authors.filter(x => x.id !== a.id))}
-                      className="text-gray-400 hover:text-red-600 p-1.5 rounded transition-colors"
+                      onClick={() => handleDelete(a.id, a.name)}
+                      className="text-gray-400 hover:text-red-600 p-1.5 rounded transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </td>
                 </tr>
               ))}
+              {authors.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-sm text-gray-500 font-medium">
+                    No correspondents registered yet. Add a new staff member to the directory.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -117,6 +157,23 @@ export function AuthorsManager() {
                 placeholder="e.g. Liam Sterling"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">URL Slug</label>
+              <input 
+                type="text" 
+                required 
+                value={slug}
+                onChange={e => setSlug(generateSlug(e.target.value))}
+                placeholder="e.g. liam-sterling"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500 font-mono"
+              />
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                <Link2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                <span className="font-semibold text-gray-600">Permalink Preview:</span>
+                <span className="font-mono text-gray-500 select-all truncate">https://pulsenews.com/author/{slug || 'untitled'}</span>
+              </div>
             </div>
 
             <div>
@@ -148,7 +205,7 @@ export function AuthorsManager() {
 
             <button 
               type="submit"
-              className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+              className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
             >
               <UserPlus className="w-4 h-4" /> Add Staff Member
             </button>

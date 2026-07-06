@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, Save } from 'lucide-react';
-import { subscribeCategories, saveCategoryItem, deleteCategoryItem, CategoryItem } from '../../services/db';
+import { subscribeCategories, saveCategoryItem, deleteCategoryItem, CategoryItem, generateSlug, getUniqueSlug, handleSlugChange } from '../../services/db';
+import { Link2 } from 'lucide-react';
 
 export default function CategoryManager() {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -8,6 +9,7 @@ export default function CategoryManager() {
   
   // Form fields
   const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   
   // Adding Category State
@@ -20,8 +22,16 @@ export default function CategoryManager() {
     return () => unsubscribe();
   }, []);
 
+  // Sync slug on category name change
+  useEffect(() => {
+    if (!editingId) {
+      setSlug(generateSlug(name));
+    }
+  }, [name, editingId]);
+
   const handleStartAdd = () => {
     setName('');
+    setSlug('');
     setDescription('');
     setIsAdding(true);
   };
@@ -30,11 +40,14 @@ export default function CategoryManager() {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const id = name.trim();
+    const id = generateSlug(name);
+    const resolvedSlug = await getUniqueSlug('categories', slug || id, id);
+
     const item: CategoryItem = {
       id,
       name,
-      description
+      description,
+      slug: resolvedSlug
     };
 
     try {
@@ -45,19 +58,33 @@ export default function CategoryManager() {
     }
   };
 
+  const [prevSlug, setPrevSlug] = useState('');
+
   const handleStartEdit = (cat: CategoryItem) => {
     setEditingId(cat.id);
     setName(cat.name);
+    setSlug(cat.slug || generateSlug(cat.name));
+    setPrevSlug(cat.slug || generateSlug(cat.name));
     setDescription(cat.description);
   };
 
   const handleSaveEdit = async (id: string) => {
     if (!name.trim()) return;
 
+    const resolvedBaseSlug = generateSlug(slug || name);
+    const resolvedSlug = await getUniqueSlug('categories', resolvedBaseSlug, id);
+
+    // Setup 301 Redirect if category slug changed
+    if (prevSlug && prevSlug !== resolvedSlug) {
+      console.log(`Setting up 301 Redirect for category: ${prevSlug} -> ${resolvedSlug}`);
+      await handleSlugChange('categories', prevSlug, resolvedSlug);
+    }
+
     const item: CategoryItem = {
       id,
       name,
-      description
+      description,
+      slug: resolvedSlug
     };
 
     try {
@@ -110,6 +137,22 @@ export default function CategoryManager() {
               />
             </div>
             <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">URL Slug</label>
+              <input 
+                type="text" 
+                value={slug} 
+                onChange={e => setSlug(generateSlug(e.target.value))}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                placeholder="e.g. geo-politics"
+              />
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                <Link2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                <span className="font-semibold text-gray-600">Permalink Preview:</span>
+                <span className="font-mono text-gray-500 select-all truncate">https://pulsenews.com/category/{slug || 'untitled'}</span>
+              </div>
+            </div>
+            <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Brief Description</label>
               <input 
                 type="text" 
@@ -158,14 +201,27 @@ export default function CategoryManager() {
                   </td>
                   <td className="py-4 px-4 font-bold text-gray-900">
                     {editingId === cat.id ? (
-                      <input 
-                        type="text" 
-                        value={name} 
-                        onChange={e => setName(e.target.value)} 
-                        className="px-3 py-1 border border-gray-300 rounded text-sm w-48"
-                      />
+                      <div className="flex flex-col gap-1.5 w-64">
+                        <input 
+                          type="text" 
+                          value={name} 
+                          onChange={e => setName(e.target.value)} 
+                          className="px-3 py-1 border border-gray-300 rounded text-sm font-semibold"
+                          placeholder="Name"
+                        />
+                        <input 
+                          type="text" 
+                          value={slug} 
+                          onChange={e => setSlug(generateSlug(e.target.value))} 
+                          className="px-3 py-1 border border-gray-300 rounded text-xs font-mono"
+                          placeholder="slug"
+                        />
+                      </div>
                     ) : (
-                      cat.name
+                      <div>
+                        <div>{cat.name}</div>
+                        <div className="text-xs font-mono text-gray-500 font-normal">/{cat.slug || generateSlug(cat.name)}</div>
+                      </div>
                     )}
                   </td>
                   <td className="py-4 px-4 text-sm text-gray-600">

@@ -316,11 +316,26 @@ export default function ArticleView({
           {/* Main Article Content */}
           <div className="lg:w-2/3">
             <article>
-              {/* Category Badge */}
-              <div className="mb-3">
-                <span className="inline-block bg-[#00a859] text-white text-[11px] font-black tracking-widest px-3 py-1 uppercase rounded-none shadow-sm select-none">
+              {/* Category Badge & Tag Badge */}
+              <div className="mb-3 flex items-center gap-2">
+                <span 
+                  onClick={() => {
+                    window.location.href = `/category/${article.category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                  }}
+                  className="inline-block bg-[#00a859] text-white text-[11px] font-black tracking-widest px-3 py-1 uppercase rounded-none shadow-sm select-none cursor-pointer hover:bg-[#00904f] transition-colors"
+                >
                   {article.category}
                 </span>
+                {article.tag && (
+                  <span 
+                    onClick={() => {
+                      window.location.href = `/tag/${article.tag.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                    }}
+                    className="inline-block bg-gray-200 hover:bg-gray-300 transition-colors text-gray-800 text-[11px] font-bold tracking-wider px-3 py-1 uppercase rounded-none shadow-sm select-none cursor-pointer"
+                  >
+                    #{article.tag}
+                  </span>
+                )}
               </div>
 
               {/* Headline */}
@@ -336,16 +351,21 @@ export default function ArticleView({
               {/* Author Row & Actions */}
               <div className="flex flex-col xl:flex-row xl:items-center justify-between border-t border-b border-gray-200 py-3 mb-6 gap-4">
                 {/* Author Info */}
-                <div className="flex items-center gap-3">
+                <div 
+                  onClick={() => {
+                    window.location.href = `/author/${article.author.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                  }}
+                  className="flex items-center gap-3 cursor-pointer group select-none"
+                >
                   <img 
                     src={article.author.avatar} 
                     alt={article.author.name} 
-                    className="w-10 h-10 rounded-full object-cover border border-gray-100" 
+                    className="w-10 h-10 rounded-full object-cover border border-gray-100 group-hover:scale-105 transition-transform" 
                     referrerPolicy="no-referrer" 
                   />
                   <div>
                     <div className="flex items-center gap-1">
-                      <span className="text-sm font-bold text-gray-900 font-sans">By {article.author.name}</span>
+                      <span className="text-sm font-bold text-gray-900 font-sans group-hover:text-[#c8232c] transition-colors">By {article.author.name}</span>
                       <CheckCircle2 className="w-3.5 h-3.5 text-[#1DA1F2] fill-[#1DA1F2] text-white" />
                     </div>
                     <p className="text-[11px] text-gray-500 font-sans mt-0.5">
@@ -723,7 +743,12 @@ export default function ArticleView({
                     A distinguished correspondent specializing in deep-dive pieces on {article.category.toLowerCase()}. Awarded multiple accolades for excellence in reporting.
                   </p>
                   
-                  <button className="mt-6 w-full py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-800 text-sm font-bold rounded-lg border border-gray-200 transition-colors cursor-pointer shadow-sm">
+                  <button 
+                    onClick={() => {
+                      window.location.href = `/author/${article.author.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                    }}
+                    className="mt-6 w-full py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-800 text-sm font-bold rounded-lg border border-gray-200 transition-colors cursor-pointer shadow-sm"
+                  >
                     View Profile
                   </button>
                 </div>

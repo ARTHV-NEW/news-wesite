@@ -73,5 +73,29 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin() || isSeeding();
     }
+
+    // Rules for authors
+    match /authors/{authorId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSeeding();
+    }
+
+    // Rules for liveblogs
+    match /liveblogs/{blogId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSeeding();
+    }
+
+    // Rules for redirects
+    match /redirects/{redirectId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSeeding();
+    }
+
+    // Rules for shorts
+    match /shorts/{shortId} {
+      allow read: if true;
+      allow write: if isAdmin() || isSeeding();
+    }
   }
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Bookmark, Heart, MessageSquare, Clock, ArrowRight, Share2, 
   Sparkles, CheckCircle2, AlertCircle, X, ShieldCheck, Mail, CreditCard,
@@ -14,29 +15,45 @@ import Footer from './components/Footer';
 import ProfileView from './components/ProfileView';
 import StaticPageView from './components/StaticPageView';
 import HeroCarousel from './components/HeroCarousel';
-import VisualArticleGrid from './components/VisualArticleGrid';
-import { Article, Category } from './types';
+import CategoryColumnsGrid from './components/CategoryColumnsGrid';
+import ShortsSection from './components/ShortsSection';
+import { Article, Category, AuthorItem, RedirectItem } from './types';
 import { INITIAL_ARTICLES } from './data/articles';
 import { 
   subscribeArticles, 
   subscribeMenu, 
   subscribeAds, 
   subscribeSettings, 
+  subscribeAuthors,
+  subscribeRedirects,
+  subscribePages,
+  generateSlug,
   GeneralSettings, 
   MenuItem, 
-  AdBanner 
+  AdBanner,
+  PageContent
 } from './services/db';
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Navigation & Filtering
   const [activeCategory, setActiveCategory] = useState<Category>('Home');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 3;
 
+  // New SEO routing active states
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
+
   // Data State
   const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
   const [savedArticles, setSavedArticles] = useState<Article[]>([]);
+  const [authors, setAuthors] = useState<AuthorItem[]>([]);
+  const [redirects, setRedirects] = useState<RedirectItem[]>([]);
+  const [pages, setPages] = useState<PageContent[]>([]);
 
   // Real-time CMS State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -90,13 +107,147 @@ export default function App() {
       setAds(liveAds);
     });
 
+    const unsubAuthors = subscribeAuthors((liveAuthors) => {
+      setAuthors(liveAuthors);
+    });
+
+    const unsubRedirects = subscribeRedirects((liveRedirects) => {
+      setRedirects(liveRedirects);
+    });
+
+    const unsubPages = subscribePages((livePages) => {
+      setPages(livePages);
+    });
+
     return () => {
       unsubArticles();
       unsubMenu();
       unsubSettings();
       unsubAds();
+      unsubAuthors();
+      unsubRedirects();
+      unsubPages();
     };
   }, []);
+
+  // 1. Sync State -> URL
+  useEffect(() => {
+    if (selectedArticle) {
+      const expectedPath = `/articles/${selectedArticle.slug}`;
+      if (location.pathname !== expectedPath) {
+        navigate(expectedPath);
+      }
+    } else if (['About', 'Contact', 'Privacy', 'Terms', 'Cookies', 'Sitemap'].includes(activeCategory)) {
+      const pageInfo = pages.find(p => p.id === activeCategory);
+      const pageSlug = pageInfo?.slug || activeCategory.toLowerCase();
+      const expectedPath = `/${pageSlug}`;
+      if (location.pathname !== expectedPath) {
+        navigate(expectedPath);
+      }
+    } else if (activeCategory === 'Profile') {
+      if (location.pathname !== '/profile') {
+        navigate('/profile');
+      }
+    } else if (selectedTag) {
+      const expectedPath = `/tag/${selectedTag}`;
+      if (location.pathname !== expectedPath) {
+        navigate(expectedPath);
+      }
+    } else if (selectedAuthor) {
+      const expectedPath = `/author/${selectedAuthor}`;
+      if (location.pathname !== expectedPath) {
+        navigate(expectedPath);
+      }
+    } else if (activeCategory && activeCategory !== 'Home') {
+      const expectedPath = `/category/${generateSlug(activeCategory)}`;
+      if (location.pathname !== expectedPath) {
+        navigate(expectedPath);
+      }
+    } else {
+      if (location.pathname !== '/' && !location.pathname.startsWith('/admin') && location.pathname !== '/search') {
+        navigate('/');
+      }
+    }
+  }, [selectedArticle, activeCategory, selectedTag, selectedAuthor, location.pathname, navigate]);
+
+  // 2. Sync URL -> State
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.startsWith('/admin')) return; // let AdminApp handle admin paths
+
+    // Enforce 301 redirects if any
+    const matchedRedirect = redirects.find(r => r.fromPath === path);
+    if (matchedRedirect) {
+      console.log(`Applying 301 Redirect: ${matchedRedirect.fromPath} -> ${matchedRedirect.toPath}`);
+      navigate(matchedRedirect.toPath, { replace: true });
+      return;
+    }
+
+    if (path === '/' || path === '') {
+      setSelectedArticle(null);
+      setActiveCategory('Home');
+      setSelectedTag(null);
+      setSelectedAuthor(null);
+    } else if (path.startsWith('/articles/')) {
+      const slug = path.split('/articles/')[1];
+      const matched = articles.find(a => a.slug === slug);
+      if (matched) {
+        setSelectedArticle(matched);
+      } else {
+        // Fallback to id
+        const matchedById = articles.find(a => a.id === slug);
+        if (matchedById) {
+          setSelectedArticle(matchedById);
+        }
+      }
+    } else if (path.startsWith('/category/')) {
+      const slug = path.split('/category/')[1];
+      const matchedCategory = menuItems.find(m => generateSlug(m.label) === slug) ||
+                              ['World', 'Politics', 'Business', 'Technology', 'Health', 'Science', 'Sports', 'Culture', 'Opinion'].find(c => generateSlug(c) === slug);
+      if (matchedCategory) {
+        const catName = typeof matchedCategory === 'string' ? matchedCategory : matchedCategory.label;
+        setActiveCategory(catName as Category);
+        setSelectedArticle(null);
+        setSelectedTag(null);
+        setSelectedAuthor(null);
+      }
+    } else if (path.startsWith('/tag/')) {
+      const slug = path.split('/tag/')[1];
+      setSelectedTag(slug);
+      setActiveCategory('Home');
+      setSelectedArticle(null);
+      setSelectedAuthor(null);
+    } else if (path.startsWith('/author/')) {
+      const slug = path.split('/author/')[1];
+      setSelectedAuthor(slug);
+      setActiveCategory('Home');
+      setSelectedArticle(null);
+      setSelectedTag(null);
+    } else if (path === '/search') {
+      const searchParams = new URLSearchParams(location.search);
+      const query = searchParams.get('q') || '';
+      setSearchQuery(query);
+      setSelectedArticle(null);
+    } else {
+      // Static page
+      const slug = path.replace(/^\//, '');
+      const matchedPage = pages.find(p => p.id.toLowerCase() === slug.toLowerCase() || (p.slug && p.slug.toLowerCase() === slug.toLowerCase()));
+      if (matchedPage) {
+        setActiveCategory(matchedPage.id as Category);
+        setSelectedArticle(null);
+        setSelectedTag(null);
+        setSelectedAuthor(null);
+      } else {
+        const matchedDefault = ['About', 'Contact', 'Privacy', 'Terms', 'Cookies', 'Sitemap'].find(p => p.toLowerCase() === slug.toLowerCase());
+        if (matchedDefault) {
+          setActiveCategory(matchedDefault as Category);
+          setSelectedArticle(null);
+          setSelectedTag(null);
+          setSelectedAuthor(null);
+        }
+      }
+    }
+  }, [location.pathname, location.search, articles, menuItems, redirects, pages, navigate]);
 
   // Save articles to LocalStorage on change
   const syncBookmarksToStorage = (updatedList: Article[]) => {
@@ -249,6 +400,112 @@ export default function App() {
           isBookmarked={savedArticles.some(a => a.id === selectedArticle.id)}
           onSelectArticle={(art) => setSelectedArticle(art)}
         />
+      ) : selectedTag ? (
+        <main className="max-w-7xl mx-auto px-4 md:px-8 py-8 flex-1 w-full animate-fade-in">
+          <div className="border-b border-[#1A1A1A] pb-4 mb-8">
+            <h2 className="font-serif text-2xl md:text-3xl font-black tracking-tight">
+              Articles Tagged with: <span className="italic">#{selectedTag}</span>
+            </h2>
+            <p className="text-[10px] text-gray-500 font-mono mt-1 uppercase tracking-[0.2em] font-bold">
+              Total Stories: {articles.filter(art => generateSlug(art.tag) === selectedTag).length}
+            </p>
+          </div>
+          {articles.filter(art => generateSlug(art.tag) === selectedTag).length === 0 ? (
+            <div className="py-16 text-center max-w-md mx-auto">
+              <p className="font-serif text-lg font-bold text-gray-700">No stories found with this tag</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {articles.filter(art => generateSlug(art.tag) === selectedTag).map((art) => (
+                <article 
+                  key={art.id}
+                  onClick={() => setSelectedArticle(art)}
+                  className="bg-white border border-[#E0E0DE] hover:border-[#1A1A1A] rounded-none overflow-hidden shadow-none transition-all duration-300 flex flex-col group cursor-pointer"
+                >
+                  <div className="w-full h-48 bg-gray-100 overflow-hidden relative">
+                    <img src={art.imageUrl} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                    <div className="absolute top-3 left-3 flex gap-2">
+                      <span className="bg-[#c8232c] text-white text-[9px] font-mono tracking-widest px-2 py-0.5 rounded-none uppercase font-bold">
+                        {art.category}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-5 flex-1 flex flex-col">
+                    <span className="font-mono text-[9px] text-gray-400 font-bold uppercase tracking-wider">{art.publishedAt} · {art.readTime}</span>
+                    <h3 className="font-serif text-md font-bold mt-2 leading-snug text-[#1A1A1A] group-hover:text-[#c8232c] transition-colors line-clamp-2">
+                      {art.title}
+                    </h3>
+                    <p className="text-xs text-gray-600 mt-2 line-clamp-3 leading-relaxed">
+                      {art.subtitle}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </main>
+      ) : selectedAuthor ? (
+        <main className="max-w-7xl mx-auto px-4 md:px-8 py-8 flex-1 w-full animate-fade-in">
+          {(() => {
+            const currentAuthor = authors.find(a => a.slug === selectedAuthor);
+            const authorName = currentAuthor ? currentAuthor.name : selectedAuthor.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            const authorRole = currentAuthor ? currentAuthor.role : 'Staff Writer';
+            const authorAvatar = currentAuthor ? currentAuthor.avatar : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=60';
+            const authorEmail = currentAuthor ? currentAuthor.email : `${selectedAuthor}@pulsenews.com`;
+            return (
+              <div className="bg-white border border-[#E0E0DE] p-6 mb-8 flex flex-col md:flex-row items-center gap-6">
+                <img src={authorAvatar} alt={authorName} className="w-20 h-20 rounded-full object-cover border-2 border-gray-100" referrerPolicy="no-referrer" />
+                <div className="text-center md:text-left flex-1">
+                  <h2 className="font-serif text-2xl md:text-3xl font-black tracking-tight text-[#1A1A1A]">
+                    {authorName}
+                  </h2>
+                  <p className="text-xs text-[#c8232c] font-mono mt-1 uppercase tracking-wider font-bold">
+                    {authorRole}
+                  </p>
+                  <p className="text-xs text-gray-500 font-sans mt-1">
+                    Contact: {authorEmail}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+          <div className="border-b border-[#1A1A1A] pb-2 mb-6">
+            <h3 className="font-serif text-lg font-bold">Published Stories</h3>
+          </div>
+          {articles.filter(art => generateSlug(art.author.name) === selectedAuthor).length === 0 ? (
+            <div className="py-16 text-center max-w-md mx-auto">
+              <p className="font-serif text-lg font-bold text-gray-700">No stories found for this author</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {articles.filter(art => generateSlug(art.author.name) === selectedAuthor).map((art) => (
+                <article 
+                  key={art.id}
+                  onClick={() => setSelectedArticle(art)}
+                  className="bg-white border border-[#E0E0DE] hover:border-[#1A1A1A] rounded-none overflow-hidden shadow-none transition-all duration-300 flex flex-col group cursor-pointer"
+                >
+                  <div className="w-full h-48 bg-gray-100 overflow-hidden relative">
+                    <img src={art.imageUrl} alt={art.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                    <div className="absolute top-3 left-3 flex gap-2">
+                      <span className="bg-[#c8232c] text-white text-[9px] font-mono tracking-widest px-2 py-0.5 rounded-none uppercase font-bold">
+                        {art.category}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-5 flex-1 flex flex-col">
+                    <span className="font-mono text-[9px] text-gray-400 font-bold uppercase tracking-wider">{art.publishedAt} · {art.readTime}</span>
+                    <h3 className="font-serif text-md font-bold mt-2 leading-snug text-[#1A1A1A] group-hover:text-[#c8232c] transition-colors line-clamp-2">
+                      {art.title}
+                    </h3>
+                    <p className="text-xs text-gray-600 mt-2 line-clamp-3 leading-relaxed">
+                      {art.subtitle}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </main>
       ) : (
         <>
           {/* SEARCH OVERLAY RESULTS (If user is searching) */}
@@ -510,7 +767,7 @@ export default function App() {
           </section>
 
           {/* Section 2.5: Visual Showcase Grid (New Competitor-inspired Image Grid) */}
-          <VisualArticleGrid 
+          <CategoryColumnsGrid 
             articles={articles} 
             onSelectArticle={(art) => setSelectedArticle(art)} 
           />
@@ -661,6 +918,8 @@ export default function App() {
               </div>
             </div>
           </section>
+
+          <ShortsSection />
 
           {/* Section 5: Side-by-Side Category Lists (Business & Sports) + Main Feed Feed & Sidebar */}
           <section className="max-w-7xl mx-auto px-4 md:px-8 py-10">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
-import { subscribePages, savePageContent, PageContent } from '../../services/db';
+import { Save, AlertCircle, CheckCircle2, FileText, Link2 } from 'lucide-react';
+import { subscribePages, savePageContent, PageContent, generateSlug, getUniqueSlug, handleSlugChange } from '../../services/db';
 
 export default function PageManager() {
   const [pages, setPages] = useState<PageContent[]>([]);
@@ -8,6 +8,8 @@ export default function PageManager() {
   
   // Edit Form State
   const [title, setTitle] = useState('');
+  const [slug, setSlug] = useState('');
+  const [prevSlug, setPrevSlug] = useState('');
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -23,6 +25,8 @@ export default function PageManager() {
     const page = pages.find(p => p.id === selectedPageId);
     if (page) {
       setTitle(page.title);
+      setSlug(page.slug || generateSlug(page.id));
+      setPrevSlug(page.slug || generateSlug(page.id));
       setContent(page.content);
       setSaveStatus('idle');
     }
@@ -34,11 +38,22 @@ export default function PageManager() {
 
     setIsSaving(true);
     setSaveStatus('idle');
+
+    const resolvedBaseSlug = generateSlug(slug || selectedPageId);
+    const resolvedSlug = await getUniqueSlug('pages', resolvedBaseSlug, selectedPageId);
+
+    // Setup 301 Redirect if page slug changed
+    if (prevSlug && prevSlug !== resolvedSlug) {
+      console.log(`Setting up 301 Redirect for page: ${prevSlug} -> ${resolvedSlug}`);
+      await handleSlugChange('pages', prevSlug, resolvedSlug);
+    }
+
     try {
       await savePageContent({
         id: selectedPageId,
         title,
-        content
+        content,
+        slug: resolvedSlug
       });
       setSaveStatus('success');
     } catch (err) {
@@ -104,8 +119,24 @@ export default function PageManager() {
                 value={title} 
                 onChange={e => setTitle(e.target.value)}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">URL Slug</label>
+              <input 
+                type="text" 
+                value={slug} 
+                onChange={e => setSlug(generateSlug(e.target.value))} 
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 font-mono"
+              />
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                <Link2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                <span className="font-semibold text-gray-600">Permalink Preview:</span>
+                <span className="font-mono text-gray-500 select-all truncate">https://pulsenews.com/{slug || 'untitled'}</span>
+              </div>
             </div>
 
             <div>

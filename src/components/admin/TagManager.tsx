@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, Save } from 'lucide-react';
-import { subscribeTags, saveTagItem, deleteTagItem, TagItem } from '../../services/db';
+import { subscribeTags, saveTagItem, deleteTagItem, TagItem, generateSlug, getUniqueSlug, handleSlugChange } from '../../services/db';
+import { Link2 } from 'lucide-react';
 
 export default function TagManager() {
   const [tags, setTags] = useState<TagItem[]>([]);
@@ -8,6 +9,8 @@ export default function TagManager() {
   
   // Form fields
   const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [prevSlug, setPrevSlug] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
@@ -17,8 +20,16 @@ export default function TagManager() {
     return () => unsubscribe();
   }, []);
 
+  // Sync slug on name change
+  useEffect(() => {
+    if (!editingId) {
+      setSlug(generateSlug(name));
+    }
+  }, [name, editingId]);
+
   const handleStartAdd = () => {
     setName('');
+    setSlug('');
     setIsAdding(true);
   };
 
@@ -26,10 +37,13 @@ export default function TagManager() {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const id = name.trim();
+    const id = generateSlug(name);
+    const resolvedSlug = await getUniqueSlug('tags', slug || id, id);
+
     const item: TagItem = {
       id,
-      name
+      name,
+      slug: resolvedSlug
     };
 
     try {
@@ -40,17 +54,29 @@ export default function TagManager() {
     }
   };
 
-  const handleStartEdit = (tag: TagItem) => {
-    setEditingId(tag.id);
-    setName(tag.name);
+  const handleStartEdit = (tagItem: TagItem) => {
+    setEditingId(tagItem.id);
+    setName(tagItem.name);
+    setSlug(tagItem.slug || generateSlug(tagItem.name));
+    setPrevSlug(tagItem.slug || generateSlug(tagItem.name));
   };
 
   const handleSaveEdit = async (id: string) => {
     if (!name.trim()) return;
 
+    const resolvedBaseSlug = generateSlug(slug || name);
+    const resolvedSlug = await getUniqueSlug('tags', resolvedBaseSlug, id);
+
+    // Redirect if slug changed
+    if (prevSlug && prevSlug !== resolvedSlug) {
+      console.log(`Setting up 301 Redirect for tag: ${prevSlug} -> ${resolvedSlug}`);
+      await handleSlugChange('tags', prevSlug, resolvedSlug);
+    }
+
     const item: TagItem = {
       id,
-      name
+      name,
+      slug: resolvedSlug
     };
 
     try {
@@ -90,16 +116,34 @@ export default function TagManager() {
         <form onSubmit={handleSaveNew} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4 shadow-sm">
           <h3 className="text-sm font-bold uppercase tracking-wider text-gray-700 border-b border-gray-100 pb-2">Create New Badge Label</h3>
           
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Tag/Label Text</label>
-            <input 
-              type="text" 
-              value={name} 
-              onChange={e => setName(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
-              placeholder="E.g. Special Report"
-            />
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Tag/Label Text</label>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={e => setName(e.target.value)}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm"
+                placeholder="E.g. Special Report"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">URL Slug</label>
+              <input 
+                type="text" 
+                value={slug} 
+                onChange={e => setSlug(generateSlug(e.target.value))}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                placeholder="e.g. special-report"
+              />
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                <Link2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                <span className="font-semibold text-gray-600">Permalink Preview:</span>
+                <span className="font-mono text-gray-500 select-all truncate">https://pulsenews.com/tag/{slug || 'untitled'}</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -137,14 +181,27 @@ export default function TagManager() {
                 </td>
                 <td className="py-4 px-4 font-bold text-gray-900">
                   {editingId === tag.id ? (
-                    <input 
-                      type="text" 
-                      value={name} 
-                      onChange={e => setName(e.target.value)} 
-                      className="px-3 py-1 border border-gray-300 rounded text-sm w-48 font-sans"
-                    />
+                    <div className="flex flex-col gap-1.5 w-64">
+                      <input 
+                        type="text" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        className="px-3 py-1 border border-gray-300 rounded text-sm font-semibold"
+                        placeholder="Tag Name"
+                      />
+                      <input 
+                        type="text" 
+                        value={slug} 
+                        onChange={e => setSlug(generateSlug(e.target.value))} 
+                        className="px-3 py-1 border border-gray-300 rounded text-xs font-mono"
+                        placeholder="slug"
+                      />
+                    </div>
                   ) : (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded">{tag.name}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded w-fit">{tag.name}</span>
+                      <span className="text-[10px] font-mono text-gray-400">/tag/{tag.slug || generateSlug(tag.name)}</span>
+                    </div>
                   )}
                 </td>
                 <td className="py-4 px-6 text-right">

@@ -4,7 +4,7 @@ import { Category } from '../types';
 import { subscribePages, PageContent } from '../services/db';
 
 interface StaticPageViewProps {
-  pageType: Category;
+  pageType: string;
   onNavigateBack: () => void;
 }
 
@@ -19,8 +19,11 @@ export default function StaticPageView({ pageType, onNavigateBack }: StaticPageV
   }, []);
   
   const getPageContent = () => {
-    // Attempt to find from live Firestore pages first
-    const livePage = livePages.find(p => p.id === pageType);
+    // Attempt to find from live Firestore pages first (by id, slug, or lowercase match)
+    const livePage = livePages.find(p => 
+      p.id.toLowerCase() === pageType.toLowerCase() || 
+      (p.slug && p.slug.toLowerCase() === pageType.toLowerCase())
+    );
     if (livePage) {
       return {
         title: livePage.title,

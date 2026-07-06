@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, Search, CheckCircle2, AlertOctagon, Sparkles, Award } from 'lucide-react';
-import { subscribeArticles, saveArticle, deleteArticle } from '../../services/db';
+import { Plus, Trash2, Edit, Search, CheckCircle2, AlertOctagon, Sparkles, Award, Link2 } from 'lucide-react';
+import { subscribeArticles, saveArticle, deleteArticle, getUniqueSlug, handleSlugChange, generateSlug } from '../../services/db';
 import { Article } from '../../types';
 
 export default function ArticleManager() {
@@ -11,6 +11,7 @@ export default function ArticleManager() {
   
   // Form values
   const [title, setTitle] = useState('');
+  const [slug, setSlug] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [category, setCategory] = useState('World');
   const [tag, setTag] = useState('');
@@ -25,6 +26,13 @@ export default function ArticleManager() {
   const [isEditorsChoice, setIsEditorsChoice] = useState(false);
   const [isOpinion, setIsOpinion] = useState(false);
 
+  // Generate slug automatically from title on create
+  useEffect(() => {
+    if (!editingArticle) {
+      setSlug(generateSlug(title));
+    }
+  }, [title, editingArticle]);
+
   useEffect(() => {
     const unsubscribe = subscribeArticles((liveArticles) => {
       setArticles(liveArticles);
@@ -35,6 +43,7 @@ export default function ArticleManager() {
   const handleCreateNew = () => {
     setEditingArticle(null);
     setTitle('');
+    setSlug('');
     setSubtitle('');
     setCategory('World');
     setTag('Breaking');
@@ -54,6 +63,7 @@ export default function ArticleManager() {
   const handleEdit = (art: Article) => {
     setEditingArticle(art);
     setTitle(art.title);
+    setSlug(art.slug || '');
     setSubtitle(art.subtitle || '');
     setCategory(art.category);
     setTag(art.tag || '');
@@ -78,9 +88,20 @@ export default function ArticleManager() {
     const contentArr = rawContent.split('\n\n').map(p => p.trim()).filter(Boolean);
     const insightsArr = rawInsights.split('\n').map(l => l.trim()).filter(Boolean);
 
+    // Ensure unique slug
+    const resolvedBaseSlug = generateSlug(slug || title);
+    const resolvedSlug = await getUniqueSlug('articles', resolvedBaseSlug, id);
+
+    // Handle 301 Redirect if slug changed
+    if (editingArticle && editingArticle.slug && editingArticle.slug !== resolvedSlug) {
+      console.log(`Setting up 301 Redirect for article: ${editingArticle.slug} -> ${resolvedSlug}`);
+      await handleSlugChange('articles', editingArticle.slug, resolvedSlug);
+    }
+
     const articleToSave: Article = {
       id,
       title,
+      slug: resolvedSlug,
       subtitle,
       content: contentArr,
       author: {
@@ -159,6 +180,23 @@ export default function ArticleManager() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600"
                   placeholder="E.g. Tech Giant Unveils Revolutionary Quantum Chip"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">URL Slug</label>
+                <input 
+                  type="text" 
+                  value={slug} 
+                  onChange={e => setSlug(generateSlug(e.target.value))} 
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-red-600 font-mono"
+                  placeholder="e.g. tech-giant-unveils-revolutionary-quantum-chip"
+                />
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                  <Link2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                  <span className="font-semibold text-gray-600">Permalink Preview:</span>
+                  <span className="font-mono text-gray-500 select-all truncate">https://pulsenews.com/articles/{slug || 'untitled'}</span>
+                </div>
               </div>
 
               <div>
