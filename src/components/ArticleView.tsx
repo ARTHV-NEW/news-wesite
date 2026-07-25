@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-
   Bookmark, Heart, Send, Volume2, 
-  MessageSquare, User, Clock, Share2, ZoomIn, ZoomOut,
+  MessageSquare, User, Clock, Share2,
   Play, Pause, Square, AlertCircle, ArrowLeft, Twitter, Facebook, Linkedin, Link as LinkIcon,
-  CheckCircle2, Plus, FileText
+  CheckCircle2, Plus, FileText, Sparkles, Tag, UserCheck, Compass, Layers, ArrowRight,
+  BookOpen, Filter, Award
 } from 'lucide-react';
 import { Article, Comment } from '../types';
+import { subscribeArticles } from '../services/db';
 import FollowSocials from "./FollowSocials";
 
 interface ArticleViewProps {
@@ -18,6 +19,16 @@ interface ArticleViewProps {
   onToggleBookmark: () => void;
   onToggleLike: () => void;
   onSelectArticle: (article: Article) => void;
+}
+
+export interface ScoredStory {
+  article: Article;
+  score: number;
+  primaryReason: string;
+  reasonBadge: string;
+  matchType: 'tag' | 'author' | 'category' | 'hybrid';
+  sharedTagsCount: number;
+  hasAuthorSimilarity: boolean;
 }
 
 export default function ArticleView({
@@ -40,6 +51,20 @@ export default function ArticleView({
   const [comments, setComments] = useState<Comment[]>(article.comments);
   const [newCommentName, setNewCommentName] = useState<string>('');
   const [newCommentText, setNewCommentText] = useState<string>('');
+
+  // Dynamic Recommended Stories State
+  const [allPoolArticles, setAllPoolArticles] = useState<Article[]>(relatedArticles || []);
+  const [recFilter, setRecFilter] = useState<'all' | 'tag' | 'author' | 'category'>('all');
+
+  // Real-time Articles Subscription
+  useEffect(() => {
+    const unsub = subscribeArticles((liveArticles) => {
+      if (liveArticles && liveArticles.length > 0) {
+        setAllPoolArticles(liveArticles);
+      }
+    });
+    return () => unsub();
+  }, []);
   
   // TTS State
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -54,7 +79,6 @@ export default function ArticleView({
       synthRef.current = window.speechSynthesis;
     }
     return () => {
-      // Clean up speech on close
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
@@ -68,6 +92,7 @@ export default function ArticleView({
     setComments(article.comments);
     setNewCommentName('');
     setNewCommentText('');
+    setRecFilter('all');
     
     if (synthRef.current) {
       synthRef.current.cancel();
@@ -76,6 +101,94 @@ export default function ArticleView({
     setIsPaused(false);
     setCurrentParagraphIdx(null);
   }, [article.id]);
+
+  // Compute Scored & Recommended Stories based on shared tags, author profile similarities & current category
+  const computeRecommendedStories = (): ScoredStory[] => {
+    const pool = allPoolArticles.length > 0 ? allPoolArticles : (relatedArticles.length > 0 ? relatedArticles : []);
+    
+    const currentCat = (article.category || '').toLowerCase();
+    const currentTag = article.tag ? article.tag.toLowerCase() : '';
+    const currentAuthorName = (article.author?.name || '').toLowerCase();
+    const currentAuthorRole = (article.author?.role || '').toLowerCase();
+
+    const scored: ScoredStory[] = pool
+      .filter(cand => cand.id !== article.id)
+      .map(cand => {
+        let score = 0;
+        const candCat = (cand.category || '').toLowerCase();
+        const candTag = cand.tag ? cand.tag.toLowerCase() : '';
+        const candAuthorName = (cand.author?.name || '').toLowerCase();
+        const candAuthorRole = (cand.author?.role || '').toLowerCase();
+
+        const isCategoryMatch = candCat === currentCat;
+        const isExactTagMatch = currentTag && candTag && (candTag === currentTag || candTag.includes(currentTag) || currentTag.includes(candTag));
+        const isSameAuthor = candAuthorName === currentAuthorName;
+        
+        // Author role similarity (shared desk keywords like Politics, Business, Correspondent, Editor, Writer)
+        const roleKeywords = currentAuthorRole.split(/[\s,/-]+/).filter(w => w.length > 3);
+        const isAuthorRoleSimilar = roleKeywords.some(kw => candAuthorRole.includes(kw));
+
+        // Score assignment
+        if (isCategoryMatch) score += 10;
+        if (isExactTagMatch) score += 18;
+        if (isSameAuthor) score += 16;
+        if (isAuthorRoleSimilar && !isSameAuthor) score += 8;
+
+        // Title or subtitle keyword overlap with tag/category
+        if (currentTag && (cand.title.toLowerCase().includes(currentTag) || cand.subtitle.toLowerCase().includes(currentTag))) {
+          score += 5;
+        }
+
+        let matchType: 'tag' | 'author' | 'category' | 'hybrid' = 'category';
+        let primaryReason = `${article.category} Topic Focus`;
+        let reasonBadge = `${article.category} Match`;
+
+        if (isExactTagMatch && (isSameAuthor || isAuthorRoleSimilar)) {
+          matchType = 'hybrid';
+          primaryReason = `Shared Tag #${cand.tag} & Author Similarity (${cand.author.name})`;
+          reasonBadge = `#${cand.tag} + ${cand.author.name}`;
+        } else if (isExactTagMatch) {
+          matchType = 'tag';
+          primaryReason = `Shared Tag: #${cand.tag}`;
+          reasonBadge = `Tag: #${cand.tag}`;
+        } else if (isSameAuthor) {
+          matchType = 'author';
+          primaryReason = `Also Written by ${cand.author.name}`;
+          reasonBadge = `Same Author (${cand.author.name})`;
+        } else if (isAuthorRoleSimilar) {
+          matchType = 'author';
+          primaryReason = `Author Profile Similarity (${cand.author.role})`;
+          reasonBadge = `Profile Similarity`;
+        } else if (isCategoryMatch) {
+          matchType = 'category';
+          primaryReason = `Matched in ${article.category} Category`;
+          reasonBadge = `${article.category} Category`;
+        }
+
+        return {
+          article: cand,
+          score,
+          primaryReason,
+          reasonBadge,
+          matchType,
+          sharedTagsCount: isExactTagMatch ? 1 : 0,
+          hasAuthorSimilarity: isSameAuthor || isAuthorRoleSimilar
+        };
+      });
+
+    // Sort by score descending
+    scored.sort((a, b) => b.score - a.score);
+    return scored;
+  };
+
+  const allRecommended = computeRecommendedStories();
+
+  const filteredRecommended = allRecommended.filter(item => {
+    if (recFilter === 'tag') return item.sharedTagsCount > 0 || item.matchType === 'tag' || item.matchType === 'hybrid';
+    if (recFilter === 'author') return item.hasAuthorSimilarity || item.matchType === 'author' || item.matchType === 'hybrid';
+    if (recFilter === 'category') return item.article.category.toLowerCase() === article.category.toLowerCase();
+    return true;
+  });
 
   const handleLike = () => {
     if (hasLiked) {
@@ -260,50 +373,6 @@ export default function ArticleView({
           </button>
           
           <div className="flex items-center gap-4">
-            {/* Text Size adjusting */}
-            <div className="flex items-center gap-1.5 border border-[#E0E0DE] rounded-none px-2.5 py-1">
-              <button 
-                onClick={() => fontSize !== 'sm' && setFontSize(fontSize === 'xl' ? 'lg' : fontSize === 'lg' ? 'md' : 'sm')}
-                className="p-1 text-gray-500 hover:text-black rounded-none cursor-pointer"
-                title="Decrease Text Size"
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <span className="text-[10px] font-mono font-bold tracking-tight uppercase">Size</span>
-              <button 
-                onClick={() => fontSize !== 'xl' && setFontSize(fontSize === 'sm' ? 'md' : fontSize === 'md' ? 'lg' : 'xl')}
-                className="p-1 text-gray-500 hover:text-black rounded-none cursor-pointer"
-                title="Increase Text Size"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Reader Background theme */}
-            <div className="flex items-center gap-1 border border-[#E0E0DE] rounded-none p-1 bg-black/5">
-              <button
-                onClick={() => setTheme('light')}
-                className={`w-6 h-6 rounded-none text-xs font-serif font-bold cursor-pointer ${theme === 'light' ? 'bg-white text-[#1A1A1A] shadow-sm border border-[#E0E0DE]' : 'text-gray-400'}`}
-                title="Paper Layout"
-              >
-                A
-              </button>
-              <button
-                onClick={() => setTheme('sepia')}
-                className={`w-6 h-6 rounded-none text-xs font-serif font-bold cursor-pointer ${theme === 'sepia' ? 'bg-[#ebdca8] text-[#433422] shadow-sm border border-[#E0E0DE]' : 'text-gray-400'}`}
-                title="Sepia Layout"
-              >
-                S
-              </button>
-              <button
-                onClick={() => setTheme('dark')}
-                className={`w-6 h-6 rounded-none text-xs font-serif font-bold cursor-pointer ${theme === 'dark' ? 'bg-[#333] text-white shadow-sm border border-gray-600' : 'text-gray-400'}`}
-                title="Dark Layout"
-              >
-                D
-              </button>
-            </div>
-
             {/* Bookmark button */}
             <button
               onClick={onToggleBookmark}
@@ -654,6 +723,167 @@ export default function ArticleView({
                 </button>
               </div>
 
+              {/* Recommended Stories Dynamic Curation Section */}
+              <section className="my-10 bg-gradient-to-br from-[#fafafa] to-[#f4f5f7] border border-gray-200 rounded-2xl p-6 md:p-8 shadow-sm">
+                {/* Section Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-200">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="p-1.5 bg-amber-100 text-amber-700 rounded-lg">
+                        <Sparkles className="w-5 h-5" />
+                      </span>
+                      <h3 className="font-serif text-2xl font-bold text-gray-900 tracking-tight">
+                        Recommended Stories
+                      </h3>
+                    </div>
+                    <p className="text-xs text-gray-600 font-sans mt-1">
+                      Curated dynamically based on shared tags <span className="font-semibold text-gray-800">#{article.tag || 'general'}</span>, author profile traits, and <span className="font-semibold text-gray-800">{article.category}</span> relevance.
+                    </p>
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                    <button
+                      onClick={() => setRecFilter('all')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                        recFilter === 'all'
+                          ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      All ({allRecommended.length})
+                    </button>
+
+                    {article.tag && (
+                      <button
+                        onClick={() => setRecFilter('tag')}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border flex items-center gap-1 ${
+                          recFilter === 'tag'
+                            ? 'bg-[#c8232c] text-white border-[#c8232c] shadow-sm'
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <Tag className="w-3 h-3" />
+                        <span>Shared Tag</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setRecFilter('author')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border flex items-center gap-1 ${
+                        recFilter === 'author'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      <UserCheck className="w-3 h-3" />
+                      <span>Author Profile</span>
+                    </button>
+
+                    <button
+                      onClick={() => setRecFilter('category')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border flex items-center gap-1 ${
+                        recFilter === 'category'
+                          ? 'bg-[#00a859] text-white border-[#00a859] shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Layers className="w-3 h-3" />
+                      <span>{article.category}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Grid of Cards */}
+                {filteredRecommended.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <Compass className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm font-bold text-gray-600">No matching recommended stories found for this filter.</p>
+                    <button 
+                      onClick={() => setRecFilter('all')} 
+                      className="mt-3 text-xs font-bold text-[#c8232c] underline cursor-pointer"
+                    >
+                      Reset filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
+                    {filteredRecommended.slice(0, 6).map((item) => (
+                      <article
+                        key={item.article.id}
+                        onClick={() => {
+                          window.scrollTo(0, 0);
+                          onSelectArticle(item.article);
+                        }}
+                        className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-400 hover:shadow-md transition-all duration-300 flex flex-col group cursor-pointer"
+                      >
+                        {/* Image & Badges */}
+                        <div className="relative w-full h-44 bg-gray-100 overflow-hidden">
+                          <img 
+                            src={item.article.imageUrl} 
+                            alt={item.article.title} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                            referrerPolicy="no-referrer" 
+                          />
+                          
+                          {/* Category tag */}
+                          <div className="absolute top-3 left-3 flex items-center gap-2">
+                            <span className="bg-[#00a859] text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded shadow-sm">
+                              {item.article.category}
+                            </span>
+                          </div>
+
+                          {/* Recommendation Reason Pill */}
+                          <div className="absolute bottom-3 left-3 right-3">
+                            <span className="inline-flex items-center gap-1 bg-black/85 backdrop-blur-md text-amber-300 text-[10px] font-bold px-2.5 py-1 rounded shadow-sm max-w-full truncate">
+                              <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                              <span className="truncate">{item.reasonBadge}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Card Body */}
+                        <div className="p-5 flex-1 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between text-[11px] text-gray-500 font-sans mb-2">
+                              <span className="font-medium">{item.article.publishedAt}</span>
+                              <span className="font-semibold">{item.article.readTime}</span>
+                            </div>
+
+                            <h4 className="font-serif text-base font-bold text-gray-900 group-hover:text-[#c8232c] transition-colors leading-snug line-clamp-2 mb-2">
+                              {item.article.title}
+                            </h4>
+
+                            <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed mb-4">
+                              {item.article.subtitle}
+                            </p>
+                          </div>
+
+                          {/* Author info & button */}
+                          <div className="pt-3 border-t border-gray-100 flex items-center justify-between mt-auto">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img 
+                                src={item.article.author?.avatar} 
+                                alt={item.article.author?.name} 
+                                className="w-6 h-6 rounded-full object-cover shrink-0"
+                                referrerPolicy="no-referrer"
+                              />
+                              <span className="text-xs font-semibold text-gray-800 truncate">
+                                {item.article.author?.name}
+                              </span>
+                            </div>
+
+                            <span className="text-xs font-bold text-[#c8232c] flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                              Read <ArrowRight className="w-3 h-3" />
+                            </span>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+
               {/* Conversation/Comments Section */}
               <div className="mt-12 bg-gray-50 p-8 rounded-xl border border-gray-200">
                 <h3 className="font-serif text-2xl font-bold mb-8 flex items-center gap-3 text-gray-900">
@@ -779,41 +1009,47 @@ export default function ArticleView({
                 </form>
               </div>
 
-              {/* Related News Widget */}
+              {/* Recommended Stories Sidebar Widget */}
               <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-5 pb-3 border-b border-gray-100">
-                  <h3 className="font-serif text-lg font-bold text-gray-900">More in {article.category}</h3>
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <h3 className="font-serif text-lg font-bold text-gray-900">Recommended for You</h3>
+                  </div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#00a859] bg-green-50 px-2 py-0.5 rounded border border-green-200">
+                    {article.category}
+                  </span>
                 </div>
                 
-                <div 
-                  className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                  {relatedArticles.length > 0 ? (
-                    relatedArticles.map(related => (
+                <div className="space-y-4">
+                  {allRecommended.length > 0 ? (
+                    allRecommended.slice(0, 4).map(item => (
                       <div 
-                        key={related.id} 
-                        className="group cursor-pointer flex flex-col gap-3 min-w-[140px] max-w-[140px] shrink-0 snap-start"
+                        key={item.article.id} 
+                        className="group cursor-pointer flex gap-3.5 pb-3 border-b border-gray-100 last:border-b-0 last:pb-0"
                         onClick={() => {
                           window.scrollTo(0, 0);
-                          onSelectArticle(related);
+                          onSelectArticle(item.article);
                         }}
                       >
-                        <div className="w-full h-24 shrink-0 overflow-hidden rounded-lg bg-gray-100 shadow-sm">
-                          <img src={related.imageUrl} alt={related.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
+                        <div className="w-16 h-16 shrink-0 overflow-hidden rounded-lg bg-gray-100 shadow-sm relative">
+                          <img src={item.article.imageUrl} alt={item.article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-serif text-sm font-bold text-gray-900 group-hover:text-[#ef3a3e] transition-colors leading-snug line-clamp-3 mb-1">
-                            {related.title}
+                          <span className="inline-block text-[9px] font-extrabold text-amber-700 uppercase tracking-wider bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 mb-1 truncate max-w-full">
+                            {item.reasonBadge}
+                          </span>
+                          <h4 className="font-serif text-xs font-bold text-gray-900 group-hover:text-[#ef3a3e] transition-colors leading-snug line-clamp-2">
+                            {item.article.title}
                           </h4>
-                          <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">
-                            {related.publishedAt}
+                          <p className="text-[10px] text-gray-400 font-medium mt-1">
+                            By {item.article.author?.name}
                           </p>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-gray-500 italic">No related articles found.</p>
+                    <p className="text-sm text-gray-500 italic">No recommended stories found.</p>
                   )}
                 </div>
               </div>

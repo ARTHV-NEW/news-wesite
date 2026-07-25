@@ -14,7 +14,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { INITIAL_ARTICLES } from '../data/articles';
-import { Article, Category, AuthorItem, LiveBlogItem, RedirectItem, ShortItem } from '../types';
+import { 
+  Article, Category, AuthorItem, LiveBlogItem, RedirectItem, ShortItem,
+  CommentModerationItem, NewsletterCampaign, ActivityLogItem, BackupItem,
+  HomepageSettings, SeoSettings, NotificationSettings, DailyDigestSubscriber
+} from '../types';
 
 export interface MenuItem {
   id: string;
@@ -196,6 +200,78 @@ export async function updateInternalLinks(oldPath: string, newPath: string) {
 // 1. Database Seeding Function
 export async function seedDatabaseIfEmpty() {
   try {
+    // Seed new enterprise collections first so they always exist
+    const commentsSnap = await getDocs(collection(db, 'comments_moderation'));
+    if (commentsSnap.empty) {
+      const initialComments: CommentModerationItem[] = [
+        { id: 'comments-1', user: 'John Doe', email: 'john@gmail.com', article: 'Global Climate Summit Geneva', text: 'This policy change is crucial! Excellent coverage.', status: 'Pending', timestamp: '12m ago', createdAt: new Date(Date.now() - 12 * 60000).toISOString() },
+        { id: 'comments-2', user: 'Mark R.', email: 'mark.r@outlook.com', article: 'AI Outperforms Radiologists', text: 'Amazing technology development. Are we sure radiology is replaced completely?', status: 'Pending', timestamp: '24m ago', createdAt: new Date(Date.now() - 24 * 60000).toISOString() },
+        { id: 'comments-3', user: 'Alice Smith', email: 'asmith@yahoo.com', article: 'Federal Reserve Cuts Interest Rates', text: 'Highly expected decision, but 25 basis points feels minimal right now.', status: 'Approved', timestamp: '1h ago', createdAt: new Date(Date.now() - 60 * 60000).toISOString() },
+        { id: 'comments-4', user: 'CryptoLord', email: 'spam@cryptomail.com', article: 'Global Climate Summit Geneva', text: 'CLICK HERE TO SECURE 500% RETURNS INSTANTLY!!!', status: 'Pending', timestamp: '2h ago', createdAt: new Date(Date.now() - 120 * 60000).toISOString() }
+      ];
+      for (const comment of initialComments) {
+        await setDoc(doc(db, 'comments_moderation', comment.id), comment);
+      }
+    }
+
+    await setDoc(doc(db, 'settings', 'homepage'), {
+      layout: 'classic',
+      breakingId: 'world-leaders-carbon-summit',
+      showLatest: true,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    await setDoc(doc(db, 'settings', 'seo'), {
+      siteName: 'Morning Pulse',
+      siteKeywords: 'news, breaking news, politics, world, financial analysis, investigative journals',
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    await setDoc(doc(db, 'settings', 'notifications'), {
+      slackIntegration: true,
+      breakingWebPush: true,
+      commentFlagReports: false,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    const backupsSnap = await getDocs(collection(db, 'backups'));
+    if (backupsSnap.empty) {
+      await setDoc(doc(db, 'backups', 'backup-1'), {
+        id: 'backup-1',
+        timestamp: '2 hours ago',
+        status: 'success',
+        size: '1.4MB',
+        downloadUrl: '#'
+      });
+    }
+
+    const logsSnap = await getDocs(collection(db, 'activity_logs'));
+    if (logsSnap.empty) {
+      const initialLogs: ActivityLogItem[] = [
+        { id: 'log-1', user: 'Admin Staff', action: 'Published breaking story "Global Climate Accord"', target: 'Articles', ip: '192.168.1.1', time: '10 mins ago', createdAt: new Date(Date.now() - 10 * 60000).toISOString() },
+        { id: 'log-2', user: 'Sarah Jenkins', action: 'Approved draft comments "AI Oncology Prospects"', target: 'Comments', ip: '192.168.1.4', time: '30 mins ago', createdAt: new Date(Date.now() - 30 * 60000).toISOString() },
+        { id: 'log-3', user: 'David Chen', action: 'Uploaded resource "market_rebound_chart.png"', target: 'Media Library', ip: '192.168.1.12', time: '1 hour ago', createdAt: new Date(Date.now() - 60 * 60000).toISOString() },
+        { id: 'log-4', user: 'Compliance Officer', action: 'Flagged spambot comment "CryptoLord"', target: 'Comments', ip: '192.168.1.9', time: '2 hours ago', createdAt: new Date(Date.now() - 120 * 60000).toISOString() },
+        { id: 'log-5', user: 'System Supervisor', action: 'Configured site general settings metadata', target: 'Settings', ip: '10.0.0.4', time: '5 hours ago', createdAt: new Date(Date.now() - 300 * 60000).toISOString() }
+      ];
+      for (const log of initialLogs) {
+        await setDoc(doc(db, 'activity_logs', log.id), log);
+      }
+    }
+
+    const usersSnap = await getDocs(collection(db, 'users'));
+    if (usersSnap.empty) {
+      const initialUsers: ReaderUser[] = [
+        { id: 'user-1', firstName: 'John', lastName: 'Doe', email: 'john@gmail.com', isAdmin: false, createdAt: new Date(Date.now() - 30 * 86400000).toISOString(), bio: 'Reader and tech enthusiast' },
+        { id: 'user-2', firstName: 'Sarah', lastName: 'Jenkins', email: 's.jenkins@pulsenews.com', isAdmin: true, createdAt: new Date(Date.now() - 60 * 86400000).toISOString(), bio: 'Politics editor' },
+        { id: 'user-3', firstName: 'David', lastName: 'Chen', email: 'd.chen@pulsenews.com', isAdmin: true, createdAt: new Date(Date.now() - 90 * 86400000).toISOString(), bio: 'Business Correspondent' },
+        { id: 'user-4', firstName: 'Admin', lastName: 'Staff', email: 'admin@pulsenews.com', isAdmin: true, createdAt: new Date(Date.now() - 120 * 86400000).toISOString(), bio: 'System Administrator' }
+      ];
+      for (const u of initialUsers) {
+        await setDoc(doc(db, 'users', u.id), u);
+      }
+    }
+
     const articlesSnap = await getDocs(collection(db, 'articles'));
     if (!articlesSnap.empty) {
       return;
@@ -802,3 +878,170 @@ export async function saveShortItem(short: ShortItem) {
 export async function deleteShortItem(id: string) {
   await deleteDoc(doc(db, 'shorts', id));
 }
+
+// Activity Logs (Audit Logs)
+export function subscribeActivityLogs(callback: (logs: ActivityLogItem[]) => void) {
+  const q = query(collection(db, 'activity_logs'), orderBy('createdAt', 'desc'), limit(50));
+  return onSnapshot(q, (snapshot) => {
+    const list: ActivityLogItem[] = [];
+    snapshot.forEach((doc) => {
+      list.push({ id: doc.id, ...doc.data() } as ActivityLogItem);
+    });
+    callback(list);
+  }, (err) => {
+    console.error('Error subscribing to activity logs:', err);
+  });
+}
+
+export async function logActivity(user: string, action: string, target: string, ip = '192.168.1.1') {
+  try {
+    const id = 'log-' + Date.now();
+    const newLog: ActivityLogItem = {
+      id,
+      user,
+      action,
+      target,
+      ip,
+      time: 'Just now',
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'activity_logs', id), newLog);
+  } catch (error) {
+    console.error('Failed to write audit log:', error);
+  }
+}
+
+// Comments Moderation
+export function subscribeComments(callback: (comments: CommentModerationItem[]) => void) {
+  const q = query(collection(db, 'comments_moderation'), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const list: CommentModerationItem[] = [];
+    snapshot.forEach((doc) => {
+      list.push(doc.data() as CommentModerationItem);
+    });
+    callback(list);
+  }, (err) => {
+    console.error('Error subscribing to comments_moderation:', err);
+  });
+}
+
+export async function saveCommentModerationItem(comment: CommentModerationItem) {
+  await setDoc(doc(db, 'comments_moderation', comment.id), comment);
+}
+
+export async function deleteCommentModerationItem(id: string) {
+  await deleteDoc(doc(db, 'comments_moderation', id));
+}
+
+// Newsletter Campaigns
+export function subscribeNewsletterCampaigns(callback: (campaigns: NewsletterCampaign[]) => void) {
+  const q = query(collection(db, 'newsletters'), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const list: NewsletterCampaign[] = [];
+    snapshot.forEach((doc) => {
+      list.push(doc.data() as NewsletterCampaign);
+    });
+    callback(list);
+  }, (err) => {
+    console.error('Error subscribing to newsletters:', err);
+  });
+}
+
+export async function saveNewsletterCampaign(campaign: NewsletterCampaign) {
+  await setDoc(doc(db, 'newsletters', campaign.id), campaign);
+}
+
+export async function deleteNewsletterCampaign(id: string) {
+  await deleteDoc(doc(db, 'newsletters', id));
+}
+
+// Backups Snapshot Tracker
+export function subscribeBackups(callback: (backups: BackupItem[]) => void) {
+  const q = query(collection(db, 'backups'), orderBy('timestamp', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const list: BackupItem[] = [];
+    snapshot.forEach((doc) => {
+      list.push(doc.data() as BackupItem);
+    });
+    callback(list);
+  }, (err) => {
+    console.error('Error subscribing to backups:', err);
+  });
+}
+
+export async function addBackupSnapshot(backup: BackupItem) {
+  await setDoc(doc(db, 'backups', backup.id), backup);
+}
+
+// Homepage layout settings
+export function subscribeHomepageSettings(callback: (settings: HomepageSettings | null) => void) {
+  return onSnapshot(doc(db, 'settings', 'homepage'), (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data() as HomepageSettings);
+    } else {
+      callback(null);
+    }
+  }, (err) => {
+    console.error('Error subscribing to homepage settings:', err);
+  });
+}
+
+export async function saveHomepageSettings(settings: HomepageSettings) {
+  await setDoc(doc(db, 'settings', 'homepage'), settings);
+}
+
+// SEO Settings
+export function subscribeSeoSettings(callback: (settings: SeoSettings | null) => void) {
+  return onSnapshot(doc(db, 'settings', 'seo'), (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data() as SeoSettings);
+    } else {
+      callback(null);
+    }
+  }, (err) => {
+    console.error('Error subscribing to seo settings:', err);
+  });
+}
+
+export async function saveSeoSettings(settings: SeoSettings) {
+  await setDoc(doc(db, 'settings', 'seo'), settings);
+}
+
+// Notification Routing Settings
+export function subscribeNotificationSettings(callback: (settings: NotificationSettings | null) => void) {
+  return onSnapshot(doc(db, 'settings', 'notifications'), (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data() as NotificationSettings);
+    } else {
+      callback(null);
+    }
+  }, (err) => {
+    console.error('Error subscribing to notification settings:', err);
+  });
+}
+
+export async function saveNotificationSettings(settings: NotificationSettings) {
+  await setDoc(doc(db, 'settings', 'notifications'), settings);
+}
+
+export async function addDailyDigestSubscriber(subscriber: DailyDigestSubscriber) {
+  await setDoc(doc(db, 'daily_digest', subscriber.id), subscriber);
+}
+
+export async function deleteDailyDigestSubscriber(id: string) {
+  await deleteDoc(doc(db, 'daily_digest', id));
+}
+
+export function subscribeDailyDigestSubscribers(callback: (subscribers: DailyDigestSubscriber[]) => void) {
+  const q = query(collection(db, 'daily_digest'), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const list: DailyDigestSubscriber[] = [];
+    snapshot.forEach((doc) => {
+      list.push(doc.data() as DailyDigestSubscriber);
+    });
+    callback(list);
+  }, (err) => {
+    console.error('Error subscribing to daily_digest subscribers:', err);
+  });
+}
+

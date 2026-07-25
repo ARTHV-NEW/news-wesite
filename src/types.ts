@@ -92,3 +92,72 @@ export type Category =
   | 'Terms'
   | 'Cookies'
   | 'Sitemap';
+
+export interface CommentModerationItem {
+  id: string;
+  user: string;
+  email: string;
+  article: string;
+  text: string;
+  status: 'Pending' | 'Approved' | 'Spam' | 'Deleted';
+  timestamp: string;
+  createdAt: string;
+}
+
+export interface NewsletterCampaign {
+  id: string;
+  subject: string;
+  segment: string;
+  content: string;
+  status: 'Draft' | 'Sent' | 'Scheduled';
+  sentToCount?: number;
+  createdAt: string;
+}
+
+export interface ActivityLogItem {
+  id: string;
+  user: string;
+  action: string;
+  target: string;
+  ip: string;
+  time: string;
+  createdAt: string;
+}
+
+export interface BackupItem {
+  id: string;
+  timestamp: string;
+  status: 'success' | 'failed' | 'running';
+  size?: string;
+  downloadUrl?: string;
+}
+
+export interface HomepageSettings {
+  layout: string;
+  breakingId: string;
+  showLatest: boolean;
+  updatedAt: string;
+}
+
+export interface SeoSettings {
+  siteName: string;
+  siteKeywords: string;
+  updatedAt: string;
+}
+
+export interface NotificationSettings {
+  slackIntegration: boolean;
+  breakingWebPush: boolean;
+  commentFlagReports: boolean;
+  updatedAt: string;
+}
+
+export interface DailyDigestSubscriber {
+  id: string;
+  email: string;
+  categories: string[];
+  deliveryTime: string;
+  format: string;
+  createdAt: string;
+}
+

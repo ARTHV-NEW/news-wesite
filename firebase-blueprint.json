@@ -1,32 +1,300 @@
 {
   "entities": {
-    "User": {
-      "title": "User",
-      "description": "User profile information",
+    "Article": {
+      "title": "Article",
+      "description": "An editorial article or news report",
       "type": "object",
       "properties": {
-        "firstName": {
-          "type": "string"
-        },
-        "lastName": {
-          "type": "string"
-        },
-        "bio": {
-          "type": "string"
-        },
-        "avatarUrl": {
-          "type": "string"
-        }
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "content": { "type": "array" },
+        "author": { "type": "object" },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "readTime": { "type": "string" },
+        "category": { "type": "string" },
+        "tag": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "likes": { "type": "integer" },
+        "slug": { "type": "string" },
+        "isBreaking": { "type": "boolean" },
+        "isFeatured": { "type": "boolean" },
+        "isEditorsChoice": { "type": "boolean" },
+        "isOpinion": { "type": "boolean" },
+        "aiInsights": { "type": "array" }
       },
-      "required": ["firstName", "lastName"]
+      "required": ["id", "title", "content", "author", "publishedAt"]
+    },
+    "PageContent": {
+      "title": "PageContent",
+      "description": "Static page content",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "slug": { "type": "string" }
+      },
+      "required": ["id", "title", "content", "slug"]
+    },
+    "CategoryItem": {
+      "title": "CategoryItem",
+      "description": "An editorial category structure",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "slug": { "type": "string" }
+      },
+      "required": ["id", "name", "slug"]
+    },
+    "TagItem": {
+      "title": "TagItem",
+      "description": "Metadata tag for stories",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" }
+      },
+      "required": ["id", "name", "slug"]
+    },
+    "AuthorItem": {
+      "title": "AuthorItem",
+      "description": "An accredited journalist/author",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string" },
+        "avatar": { "type": "string" },
+        "slug": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "slug"]
+    },
+    "ReaderUser": {
+      "title": "ReaderUser",
+      "description": "A system user or reader profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string" },
+        "isAdmin": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "bio": { "type": "string" },
+        "avatarUrl": { "type": "string" }
+      },
+      "required": ["id", "firstName", "lastName", "email", "isAdmin"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "A navigation menu link",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "link": { "type": "string" },
+        "order": { "type": "integer" }
+      },
+      "required": ["id", "label", "link", "order"]
+    },
+    "RedirectItem": {
+      "title": "RedirectItem",
+      "description": "A URL redirect rule",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fromPath": { "type": "string" },
+        "toPath": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "fromPath", "toPath", "createdAt"]
+    },
+    "CommentModerationItem": {
+      "title": "CommentModerationItem",
+      "description": "A comment submitted for moderation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user": { "type": "string" },
+        "email": { "type": "string" },
+        "article": { "type": "string" },
+        "text": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Spam", "Deleted"] },
+        "timestamp": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "user", "text", "status", "createdAt"]
+    },
+    "NewsletterCampaign": {
+      "title": "NewsletterCampaign",
+      "description": "A newsletter campaign dispatch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "subject": { "type": "string" },
+        "segment": { "type": "string" },
+        "content": { "type": "string" },
+        "status": { "type": "string", "enum": ["Draft", "Sent", "Scheduled"] },
+        "sentToCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "subject", "content", "status", "createdAt"]
+    },
+    "ActivityLogItem": {
+      "title": "ActivityLogItem",
+      "description": "An administrative security audit log entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user": { "type": "string" },
+        "action": { "type": "string" },
+        "target": { "type": "string" },
+        "ip": { "type": "string" },
+        "time": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "user", "action", "target", "createdAt"]
+    },
+    "BackupItem": {
+      "title": "BackupItem",
+      "description": "A database backup snapshot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "failed", "running"] },
+        "size": { "type": "string" },
+        "downloadUrl": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "status"]
+    },
+    "LiveBlogItem": {
+      "title": "LiveBlogItem",
+      "description": "A real-time live blogging update item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "slug": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "publishedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "publishedAt"]
+    },
+    "MediaAsset": {
+      "title": "MediaAsset",
+      "description": "An asset uploaded to the Media Library",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "url", "createdAt"]
+    },
+    "AdBanner": {
+      "title": "AdBanner",
+      "description": "An advertisement slot banner configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "targetUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["top", "sidebar", "inline"] },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "title", "imageUrl", "type", "isActive"]
+    },
+    "DailyDigestSubscriber": {
+      "title": "DailyDigestSubscriber",
+      "description": "A reader signed up for customized headline summaries daily",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "deliveryTime": { "type": "string" },
+        "format": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "categories", "deliveryTime", "format", "createdAt"]
     }
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/User"
-      },
-      "description": "Store user profiles"
+    "daily_digest": {
+      "schema": { "$ref": "#/entities/DailyDigestSubscriber" },
+      "description": "Collection of customized daily digest headline subscribers"
+    },
+    "articles": {
+      "schema": { "$ref": "#/entities/Article" },
+      "description": "Collection of editorial articles"
+    },
+    "pages": {
+      "schema": { "$ref": "#/entities/PageContent" },
+      "description": "Collection of custom static pages"
+    },
+    "categories": {
+      "schema": { "$ref": "#/entities/CategoryItem" },
+      "description": "Collection of category mappings"
+    },
+    "tags": {
+      "schema": { "$ref": "#/entities/TagItem" },
+      "description": "Collection of story tags"
+    },
+    "authors": {
+      "schema": { "$ref": "#/entities/AuthorItem" },
+      "description": "Collection of journalist profiles"
+    },
+    "users": {
+      "schema": { "$ref": "#/entities/ReaderUser" },
+      "description": "Collection of registered system readers and staff"
+    },
+    "menu": {
+      "schema": { "$ref": "#/entities/MenuItem" },
+      "description": "Collection of menu links"
+    },
+    "redirects": {
+      "schema": { "$ref": "#/entities/RedirectItem" },
+      "description": "Collection of URL redirection rules"
+    },
+    "comments_moderation": {
+      "schema": { "$ref": "#/entities/CommentModerationItem" },
+      "description": "Collection of comments requiring admin moderation"
+    },
+    "settings": {
+      "schema": "object",
+      "description": "Global and system channel configuration settings"
+    },
+    "backups": {
+      "schema": { "$ref": "#/entities/BackupItem" },
+      "description": "Database backup historical events"
+    },
+    "activity_logs": {
+      "schema": { "$ref": "#/entities/ActivityLogItem" },
+      "description": "Security audit events and logs"
+    },
+    "liveblogs": {
+      "schema": { "$ref": "#/entities/LiveBlogItem" },
+      "description": "Real-time updates on active news coverage"
+    },
+    "media": {
+      "schema": { "$ref": "#/entities/MediaAsset" },
+      "description": "Visual files and documentation in the media library"
+    },
+    "ads": {
+      "schema": { "$ref": "#/entities/AdBanner" },
+      "description": "System-wide advertising slot campaigns"
     }
   }
 }

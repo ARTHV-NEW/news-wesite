@@ -1,101 +1,308 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+
+    // 1. GLOBAL SAFETY NET
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Standalone global helpers
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
+    function isEmailVerified() {
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.email == "ghostriderplay120@gmail.com");
+    }
+
     function isAdmin() {
       return isSignedIn() && (
-        ("email" in request.auth.token && request.auth.token.email == "ghostriderplay120@gmail.com") ||
+        request.auth.token.email == "ghostriderplay120@gmail.com" ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         "isAdmin" in get(/databases/$(database)/documents/users/$(request.auth.uid)).data &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
       );
     }
 
     function isSeeding() {
-      return !exists(/databases/$(database)/documents/settings/general);
+      return !exists(/databases/$(database)/documents/settings/notifications);
     }
 
-    // Rules for users
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity static validation helpers
+    function isValidArticle(data) {
+      return data.keys().hasAll(['id', 'title', 'content', 'author', 'publishedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 500
+        && data.content is list && data.content.size() <= 200
+        && data.author is map
+        && data.publishedAt is string;
+    }
+
+    function isValidPageContent(data) {
+      return data.keys().hasAll(['id', 'title', 'content', 'slug'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 300
+        && data.content is string && data.content.size() <= 50000
+        && data.slug is string && data.slug.size() <= 200;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'name', 'slug'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 100
+        && data.slug is string && data.slug.size() <= 100;
+    }
+
+    function isValidTag(data) {
+      return data.keys().hasAll(['id', 'name', 'slug'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 100
+        && data.slug is string && data.slug.size() <= 100;
+    }
+
+    function isValidAuthor(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'slug'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 200
+        && data.email is string && data.email.size() <= 256
+        && data.slug is string && data.slug.size() <= 200;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'firstName', 'lastName', 'email', 'isAdmin'])
+        && data.id is string && data.id.size() <= 128
+        && data.firstName is string && data.firstName.size() <= 100
+        && data.lastName is string && data.lastName.size() <= 100
+        && data.email is string && data.email.size() <= 256
+        && data.isAdmin is bool;
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['id', 'user', 'text', 'status', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.user is string && data.user.size() <= 200
+        && data.text is string && data.text.size() <= 2000
+        && data.status in ['Pending', 'Approved', 'Spam', 'Deleted']
+        && data.createdAt is string;
+    }
+
+    function isValidLiveBlog(data) {
+      return data.keys().hasAll(['id', 'title', 'publishedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 500
+        && data.publishedAt is string;
+    }
+
+    function isValidMedia(data) {
+      return data.keys().hasAll(['id', 'title', 'url', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 300
+        && data.url is string && data.url.size() <= 1024
+        && data.createdAt is string;
+    }
+
+    function isValidAd(data) {
+      return data.keys().hasAll(['id', 'title', 'imageUrl', 'type', 'isActive'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 300
+        && data.imageUrl is string && data.imageUrl.size() <= 1024
+        && data.type in ['top', 'sidebar', 'inline']
+        && data.isActive is bool;
+    }
+
+    function isValidActivityLog(data) {
+      return data.keys().hasAll(['id', 'user', 'action', 'target', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.user is string && data.user.size() <= 200
+        && data.action is string && data.action.size() <= 1000
+        && data.target is string && data.target.size() <= 200
+        && data.createdAt is string;
+    }
+
+    function isValidBackup(data) {
+      return data.keys().hasAll(['id', 'timestamp', 'status'])
+        && data.id is string && data.id.size() <= 128
+        && data.timestamp is string
+        && data.status in ['success', 'failed', 'running'];
+    }
+
+    function isValidCampaign(data) {
+      return data.keys().hasAll(['id', 'subject', 'content', 'status', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.subject is string && data.subject.size() <= 500
+        && data.content is string && data.content.size() <= 100000
+        && data.status in ['Draft', 'Sent', 'Scheduled']
+        && data.createdAt is string;
+    }
+
+    function isValidRedirect(data) {
+      return data.keys().hasAll(['id', 'fromPath', 'toPath', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.fromPath is string && data.fromPath.size() <= 512
+        && data.toPath is string && data.toPath.size() <= 512
+        && data.createdAt is string;
+    }
+
+    function isValidShort(data) {
+      return data.keys().hasAll(['id', 'title', 'description', 'videoUrl', 'imageUrl'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 300
+        && data.description is string && data.description.size() <= 1000
+        && data.videoUrl is string && data.videoUrl.size() <= 1024
+        && data.imageUrl is string && data.imageUrl.size() <= 1024;
+    }
+
+    // PATH SPECIFIC MATCH BLOCKS & POLICIES
+
+    // 1. Users Profile & PII Security
     match /users/{userId} {
-      allow read: if true;
-      allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin()) && isValidUser(incoming()) && (incoming().isAdmin == false || isAdmin());
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin()) && isValidUser(incoming()) && (incoming().isAdmin == existing().isAdmin || isAdmin());
       allow delete: if isAdmin();
     }
 
-    // Rules for articles
+    // 2. Articles
     match /articles/{articleId} {
       allow read: if true;
-      allow write: if isAdmin() || isSeeding();
+      allow create: if isValidId(articleId) && (isAdmin() || isSeeding()) && isValidArticle(incoming());
+      allow update: if isValidId(articleId) && (isAdmin() || isSeeding()) && isValidArticle(incoming());
+      allow delete: if isValidId(articleId) && isAdmin();
     }
 
-    // Rules for menu
-    match /menu/{menuId} {
-      allow read: if true;
-      allow write: if isAdmin() || isSeeding();
-    }
-
-    // Rules for media
-    match /media/{mediaId} {
-      allow read: if true;
-      allow write: if isAdmin() || isSeeding();
-    }
-
-    // Rules for pages
+    // 3. Static Pages
     match /pages/{pageId} {
       allow read: if true;
-      allow write: if isAdmin() || isSeeding();
+      allow create: if isValidId(pageId) && (isAdmin() || isSeeding()) && isValidPageContent(incoming());
+      allow update: if isValidId(pageId) && (isAdmin() || isSeeding()) && isValidPageContent(incoming());
+      allow delete: if isValidId(pageId) && isAdmin();
     }
 
-    // Rules for ads
-    match /ads/{adId} {
+    // 4. Categories
+    match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isAdmin() || isSeeding();
+      allow create: if isValidId(categoryId) && (isAdmin() || isSeeding()) && isValidCategory(incoming());
+      allow update: if isValidId(categoryId) && (isAdmin() || isSeeding()) && isValidCategory(incoming());
+      allow delete: if isValidId(categoryId) && isAdmin();
     }
 
-    // Rules for settings
+    // 5. Tags
+    match /tags/{tagId} {
+      allow read: if true;
+      allow create: if isValidId(tagId) && (isAdmin() || isSeeding()) && isValidTag(incoming());
+      allow update: if isValidId(tagId) && (isAdmin() || isSeeding()) && isValidTag(incoming());
+      allow delete: if isValidId(tagId) && isAdmin();
+    }
+
+    // 6. Authors
+    match /authors/{authorId} {
+      allow read: if true;
+      allow create: if isValidId(authorId) && (isAdmin() || isSeeding()) && isValidAuthor(incoming());
+      allow update: if isValidId(authorId) && (isAdmin() || isSeeding()) && isValidAuthor(incoming());
+      allow delete: if isValidId(authorId) && isAdmin();
+    }
+
+    // 7. Menu
+    match /menu/{menuId} {
+      allow read: if true;
+      allow create, update: if isValidId(menuId) && (isAdmin() || isSeeding());
+      allow delete: if isValidId(menuId) && isAdmin();
+    }
+
+    // 8. Redirects
+    match /redirects/{redirectId} {
+      allow read: if true;
+      allow create, update: if isValidId(redirectId) && (isAdmin() || isSeeding()) && isValidRedirect(incoming());
+      allow delete: if isValidId(redirectId) && isAdmin();
+    }
+
+    // 9. Comments Moderation
+    match /comments_moderation/{commentId} {
+      allow read: if true;
+      allow create: if isValidId(commentId) && isValidComment(incoming());
+      allow update: if isValidId(commentId) && (isAdmin() || isSeeding()) && isValidComment(incoming());
+      allow delete: if isValidId(commentId) && isAdmin();
+    }
+
+    // 10. Campaigns
+    match /campaigns/{campaignId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(campaignId) && (isAdmin() || isSeeding()) && isValidCampaign(incoming());
+      allow update: if isValidId(campaignId) && (isAdmin() || isSeeding()) && isValidCampaign(incoming());
+      allow delete: if isValidId(campaignId) && isAdmin();
+    }
+
+    // 11. Settings
     match /settings/{settingsId} {
       allow read: if true;
       allow write: if isAdmin() || isSeeding();
     }
 
-    // Rules for categories
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if isAdmin() || isSeeding();
+    // 12. Backups
+    match /backups/{backupId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(backupId) && (isAdmin() || isSeeding()) && isValidBackup(incoming());
+      allow update: if isValidId(backupId) && (isAdmin() || isSeeding()) && isValidBackup(incoming());
+      allow delete: if isValidId(backupId) && isAdmin();
     }
 
-    // Rules for tags
-    match /tags/{tagId} {
-      allow read: if true;
-      allow write: if isAdmin() || isSeeding();
+    // 13. Activity Logs
+    match /activity_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(logId) && isValidActivityLog(incoming());
+      allow update: if isValidId(logId) && isAdmin() && isValidActivityLog(incoming());
+      allow delete: if isValidId(logId) && isAdmin();
     }
 
-    // Rules for authors
-    match /authors/{authorId} {
-      allow read: if true;
-      allow write: if isAdmin() || isSeeding();
-    }
-
-    // Rules for liveblogs
+    // 14. Live Blogs
     match /liveblogs/{blogId} {
       allow read: if true;
-      allow write: if isAdmin() || isSeeding();
+      allow create: if isValidId(blogId) && (isAdmin() || isSeeding()) && isValidLiveBlog(incoming());
+      allow update: if isValidId(blogId) && (isAdmin() || isSeeding()) && isValidLiveBlog(incoming());
+      allow delete: if isValidId(blogId) && isAdmin();
     }
 
-    // Rules for redirects
-    match /redirects/{redirectId} {
-      allow read: if true;
-      allow write: if isAdmin() || isSeeding();
-    }
-
-    // Rules for shorts
+    // 15. Shorts
     match /shorts/{shortId} {
       allow read: if true;
-      allow write: if isAdmin() || isSeeding();
+      allow create: if isValidId(shortId) && (isAdmin() || isSeeding()) && isValidShort(incoming());
+      allow update: if isValidId(shortId) && (isAdmin() || isSeeding()) && isValidShort(incoming());
+      allow delete: if isValidId(shortId) && isAdmin();
+    }
+
+    // 16. Media
+    match /media/{mediaId} {
+      allow read: if true;
+      allow create: if isValidId(mediaId) && (isAdmin() || isSeeding()) && isValidMedia(incoming());
+      allow update: if isValidId(mediaId) && (isAdmin() || isSeeding()) && isValidMedia(incoming());
+      allow delete: if isValidId(mediaId) && isAdmin();
+    }
+
+    // 17. Ads
+    match /ads/{adId} {
+      allow read: if true;
+      allow create: if isValidId(adId) && (isAdmin() || isSeeding()) && isValidAd(incoming());
+      allow update: if isValidId(adId) && (isAdmin() || isSeeding()) && isValidAd(incoming());
+      allow delete: if isValidId(adId) && isAdmin();
+    }
+
+    // 18. Daily Digest Subscribers
+    match /daily_digest/{subId} {
+      allow read: if isAdmin();
+      allow create: if isValidId(subId) && incoming().email is string && incoming().email.size() <= 256;
+      allow update, delete: if isAdmin();
     }
   }
 }

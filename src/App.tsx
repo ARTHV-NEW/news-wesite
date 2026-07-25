@@ -11,6 +11,7 @@ import TrendingTicker from './components/TrendingTicker';
 import SavedArticlesDrawer from './components/SavedArticlesDrawer';
 import ArticleView from './components/ArticleView';
 import Newsletter from './components/Newsletter';
+import DailyDigestSignup from './components/DailyDigestSignup';
 import Footer from './components/Footer';
 import ProfileView from './components/ProfileView';
 import StaticPageView from './components/StaticPageView';
@@ -1411,6 +1412,9 @@ export default function App() {
       </>
       )}
 
+      {/* CURATED DAILY DIGEST BAR */}
+      <DailyDigestSignup />
+
       {/* EMAIL NEWSLETTER BAR */}
       <Newsletter />
 
@@ -1583,6 +1587,26 @@ export default function App() {
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Activate Clearance Node</span>
                 </button>
+
+                {/* Alternative link for Free Daily Digest */}
+                <div className="text-center pt-2">
+                  <span className="text-[10px] text-gray-400">Not ready for Premium?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSubscribeModalOpen(false);
+                      setTimeout(() => {
+                        const el = document.getElementById('daily-digest');
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }, 100);
+                    }}
+                    className="ml-1 text-[10px] font-bold text-[#c8232c] hover:underline cursor-pointer bg-transparent border-none"
+                  >
+                    Get the Free Daily Digest instead →
+                  </button>
+                </div>
               </form>
             )}
 
